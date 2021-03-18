@@ -18,8 +18,8 @@
 //
 static void *(*mallocp)(size_t size) = NULL;
 static void (*freep)(void *ptr) = NULL;
-static void *(*callocp)(size_t nmemb, size_t size);
-static void *(*reallocp)(void *ptr, size_t size);
+static void *(*callocp)(size_t nmemb, size_t size) = NULL;
+static void *(*reallocp)(void *ptr, size_t size) = NULL;
 
 //
 // statistics & other global variables
@@ -54,23 +54,23 @@ void init(void)
 __attribute__((destructor))
 void fini(void)
 {
-    // ...
-
     // to avoid divide by 0
     unsigned long alloc_avg = n_malloc+n_calloc+n_realloc == 0 ?
                               0 : n_allocb/(n_malloc+n_calloc+n_realloc);
 
     LOG_STATISTICS(n_allocb, alloc_avg, n_freeb);
 
-    // ptr, size, ref cnt
-    //TODO: nonfreed가 0byte면 이거 인쇄 안 한다.
+    // only printf when nonfreed bytes != 0
     if (n_allocb != n_freeb){
         LOG_NONFREED_START();
-    //TODO: 아마도 linked list 없어질 때까지 for문 돌려아 할듯?
-        LOG_BLOCK(0L, 0L, 0L);
+        item* l = list;
+        while(l != NULL){
+            if (l->cnt != 0){
+                LOG_BLOCK(l->ptr, l->size, l->cnt);
+            }
+            l = l->next;
+        }
     }
-    //TODO: delete
-
     LOG_STOP();
 
     // free list (not needed for part 1)
@@ -83,17 +83,14 @@ void* malloc(size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc malloc
-    mallocp = dlsym(RTLD_NEXT, "malloc");
+    mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
 
-    // call libc malloc
-    void* ptr = mallocp(size);
+    void* ptr = mallocp(size);              // call libc malloc
 
     alloc(list, ptr, size);     // insert in the list
     n_allocb += size;           // total allocated bytes
     n_malloc ++;                // total malloc call
-    // printf invokes segfault.
-    mlog("          malloc( %ld ) = %p", size, ptr);
+    LOG_MALLOC(size, ptr);
     return ptr;
 }
 
@@ -103,17 +100,15 @@ void* calloc(size_t nmemb, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc calloc
-    callocp = dlsym(RTLD_NEXT, "calloc");
+    callocp = dlsym(RTLD_NEXT, "calloc");   // get addr of libc calloc
 
-    // call libc calloc
-    void* ptr = callocp(nmemb, size);
+    void* ptr = callocp(nmemb, size);       // call libc calloc
 
     unsigned long csize = nmemb * size;
     alloc(list, ptr, csize);    // insert in the list
     n_allocb += csize;          // total allocated bytes
     n_calloc ++;                // total calloc call
-    mlog("          calloc( %ld, %ld ) = %p", nmemb, size, ptr);
+    LOG_CALLOC(nmemb, size, ptr);
     return ptr;
 }
 
@@ -123,17 +118,15 @@ void* realloc(void* rptr, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc realloc
-    reallocp = dlsym(RTLD_NEXT, "realloc");
+    reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
 
-    // call libc realloc
-    void* ptr = reallocp(rptr, size);
+    void* ptr = reallocp(rptr, size);       // call libc realloc
 
-    n_freeb += dealloc(list, rptr)->size;
-    alloc(list, rptr, size);
-    n_allocb += size;   // total allocated bytes
-    n_realloc ++;       // total realloc call
-    mlog("          realloc( %p, %ld ) = %p", rptr, size, ptr);
+    n_freeb += dealloc(list, rptr)->size;   // dealloc & count freed bytes
+    alloc(list, ptr, size);     // alloc new size & pointer
+    n_allocb += size;           // total allocated bytes
+    n_realloc ++;               // total realloc call
+    LOG_REALLOC(rptr, size, ptr);
     return ptr;
 }
 
@@ -147,5 +140,5 @@ void free(void* ptr){
     freep = dlsym(RTLD_NEXT, "free");       // Get address of libc free
     n_freeb += dealloc(list, ptr)->size;    //freed bytes
     freep(ptr);     // call libc realloc
-    mlog("          free( %p )", ptr);
+    LOG_FREE(ptr);
 }
