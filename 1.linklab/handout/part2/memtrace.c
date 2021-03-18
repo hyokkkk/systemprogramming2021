@@ -79,12 +79,12 @@ void fini(void)
 
 void* malloc(size_t size){
     char* error;
+    mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
+
     if ((error = dlerror()) != NULL){
         fputs(error, stderr);
         exit(1);
     }
-    mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
-
     void* ptr = mallocp(size);              // call libc malloc
     LOG_MALLOC(size, ptr);
 
@@ -96,12 +96,12 @@ void* malloc(size_t size){
 
 void* calloc(size_t nmemb, size_t size){
     char* error;
+    callocp = dlsym(RTLD_NEXT, "calloc");   // get addr of libc calloc
+
     if ((error = dlerror()) != NULL){
         fputs(error, stderr);
         exit(1);
     }
-    callocp = dlsym(RTLD_NEXT, "calloc");   // get addr of libc calloc
-
     void* ptr = callocp(nmemb, size);       // call libc calloc
     LOG_CALLOC(nmemb, size, ptr);
 
@@ -114,12 +114,12 @@ void* calloc(size_t nmemb, size_t size){
 
 void* realloc(void* rptr, size_t size){
     char* error;
+    reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
+
     if ((error = dlerror()) != NULL){
         fputs(error, stderr);
         exit(1);
     }
-    reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
-
     void* ptr = reallocp(rptr, size);       // call libc realloc
     LOG_REALLOC(rptr, size, ptr);
 
@@ -131,13 +131,14 @@ void* realloc(void* rptr, size_t size){
 }
 
 void free(void* ptr){
-    char* error;
     if (!ptr){ return; }
+
+    char* error;
+    freep = dlsym(RTLD_NEXT, "free");       // Get address of libc free
     if ((error = dlerror()) != NULL){
         fputs(error, stderr);
         exit(1);
     }
-    freep = dlsym(RTLD_NEXT, "free");       // Get address of libc free
     n_freeb += dealloc(list, ptr)->size;    //freed bytes
     freep(ptr);     // call libc realloc
     LOG_FREE(ptr);
