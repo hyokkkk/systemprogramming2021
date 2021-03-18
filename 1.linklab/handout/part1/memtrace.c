@@ -54,15 +54,18 @@ void init(void)
 __attribute__((destructor))
 void fini(void)
 {
-  // ...
+    // ...
 
-//TODO: avg 구할 때 divide by 0 나오면 default 0 되게.
-  LOG_STATISTICS(n_allocb, n_allocb/(n_malloc+n_calloc+n_realloc), n_freeb);
+    // to avoid divide by 0
+    unsigned long alloc_avg = n_malloc+n_calloc+n_realloc == 0 ? \
+                              0 : n_allocb/(n_malloc+n_calloc+n_realloc);
 
-  LOG_STOP();
+    LOG_STATISTICS(n_allocb, alloc_avg, n_freeb);
 
-  // free list (not needed for part 1)
-  free_list(list);
+    LOG_STOP();
+
+    // free list (not needed for part 1)
+    free_list(list);
 }
 
 void* malloc(size_t size){
