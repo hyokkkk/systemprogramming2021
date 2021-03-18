@@ -18,8 +18,8 @@
 //
 static void *(*mallocp)(size_t size) = NULL;
 static void (*freep)(void *ptr) = NULL;
-static void *(*callocp)(size_t nmemb, size_t size);
-static void *(*reallocp)(void *ptr, size_t size);
+static void *(*callocp)(size_t nmemb, size_t size) = NULL;
+static void *(*reallocp)(void *ptr, size_t size) = NULL;
 
 //
 // statistics & other global variables
@@ -54,14 +54,11 @@ void init(void)
 __attribute__((destructor))
 void fini(void)
 {
-    // ...
-
     // to avoid divide by 0
-    unsigned long alloc_avg = n_malloc+n_calloc+n_realloc == 0 ? \
+    unsigned long alloc_avg = n_malloc+n_calloc+n_realloc == 0 ?
                               0 : n_allocb/(n_malloc+n_calloc+n_realloc);
 
     LOG_STATISTICS(n_allocb, alloc_avg, n_freeb);
-
     LOG_STOP();
 
     // free list (not needed for part 1)
@@ -74,16 +71,13 @@ void* malloc(size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc malloc
-    mallocp = dlsym(RTLD_NEXT, "malloc");
+    mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
 
-    // call libc malloc
-    void* ptr = mallocp(size);
+    void* ptr = mallocp(size);              // call libc malloc
 
-    n_allocb += size;   // total allocated bytes
-    n_malloc ++;        // total malloc call
-    // printf invokes segfault.
-    mlog("          malloc( %ld ) = %p", size, ptr);
+    n_allocb += size;           // total allocated bytes
+    n_malloc ++;                // total malloc call
+    LOG_MALLOC(size, ptr);
     return ptr;
 }
 
@@ -93,15 +87,14 @@ void* calloc(size_t nmemb, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc calloc
-    callocp = dlsym(RTLD_NEXT, "calloc");
+    callocp = dlsym(RTLD_NEXT, "calloc");   // get addr of libc calloc
 
-    // call libc calloc
-    void* ptr = callocp(nmemb, size);
+    void* ptr = callocp(nmemb, size);       // call libc calloc
 
-    n_allocb += nmemb * size;   // total allocated bytes
+    unsigned long csize = nmemb * size;
+    n_allocb += csize;          // total allocated bytes
     n_calloc ++;                // total calloc call
-    mlog("          calloc( %ld, %ld ) = %p", nmemb, size, ptr);
+    LOG_CALLOC(nmemb, size, ptr);
     return ptr;
 }
 
@@ -111,15 +104,13 @@ void* realloc(void* rptr, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc realloc
-    reallocp = dlsym(RTLD_NEXT, "realloc");
+    reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
 
-    // call libc realloc
-    void* ptr = reallocp(rptr, size);
+    void* ptr = reallocp(rptr, size);       // call libc realloc
 
-    n_allocb += size;   // total allocated bytes
-    n_realloc ++;       // total malloc call
-    mlog("          realloc( %p, %ld ) = %p", rptr, size, ptr);
+    n_allocb += size;           // total allocated bytes
+    n_realloc ++;               // total realloc call
+    LOG_REALLOC(rptr, size, ptr);
     return ptr;
 }
 
@@ -130,12 +121,7 @@ void free(void* ptr){
         fputs(error, stderr);
         exit(1);
     }
-    // Get address of libc free
-    freep = dlsym(RTLD_NEXT, "free");
-
-    // call libc realloc
-    freep(ptr);
-
-    //n_freeb +=
-    mlog("          free( %p )", ptr);
+    freep = dlsym(RTLD_NEXT, "free");       // Get address of libc free
+    freep(ptr);     // call libc realloc
+    LOG_FREE(ptr);
 }
