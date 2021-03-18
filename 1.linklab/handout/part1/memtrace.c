@@ -74,10 +74,10 @@ void* malloc(size_t size){
     mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
 
     void* ptr = mallocp(size);              // call libc malloc
+    LOG_MALLOC(size, ptr);
 
     n_allocb += size;           // total allocated bytes
     n_malloc ++;                // total malloc call
-    LOG_MALLOC(size, ptr);
     return ptr;
 }
 
@@ -90,11 +90,11 @@ void* calloc(size_t nmemb, size_t size){
     callocp = dlsym(RTLD_NEXT, "calloc");   // get addr of libc calloc
 
     void* ptr = callocp(nmemb, size);       // call libc calloc
+    LOG_CALLOC(nmemb, size, ptr);
 
     unsigned long csize = nmemb * size;
     n_allocb += csize;          // total allocated bytes
     n_calloc ++;                // total calloc call
-    LOG_CALLOC(nmemb, size, ptr);
     return ptr;
 }
 
@@ -107,10 +107,10 @@ void* realloc(void* rptr, size_t size){
     reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
 
     void* ptr = reallocp(rptr, size);       // call libc realloc
+    LOG_REALLOC(rptr, size, ptr);
 
     n_allocb += size;           // total allocated bytes
     n_realloc ++;               // total realloc call
-    LOG_REALLOC(rptr, size, ptr);
     return ptr;
 }
 

@@ -60,7 +60,7 @@ void fini(void)
 
     LOG_STATISTICS(n_allocb, alloc_avg, n_freeb);
 
-    // only printf when nonfreed bytes != 0
+    // only print when nonfreed bytes != 0
     if (n_allocb != n_freeb){
         LOG_NONFREED_START();
         item* l = list;
@@ -138,7 +138,14 @@ void free(void* ptr){
         exit(1);
     }
     freep = dlsym(RTLD_NEXT, "free");       // Get address of libc free
-    n_freeb += dealloc(list, ptr)->size;    //freed bytes
-    freep(ptr);     // call libc realloc
     LOG_FREE(ptr);
+
+    // to check illigal free and double free
+    item* target = find(list, ptr);
+    if (!target){ LOG_ILL_FREE(); }
+    else if(target->cnt == 0){ LOG_DOUBLE_FREE(); }
+    else {
+        n_freeb += dealloc(list, ptr)->size;    //freed bytes
+        freep(ptr);                             // call libc realloc
+    }
 }
