@@ -112,6 +112,17 @@ void* calloc(size_t nmemb, size_t size){
     return ptr;
 }
 
+//TODO: 1. realloc의 return이 ptr과 동일하다면 free가 일어나지 않음. 사이즈만 커진 것이다.
+//1-1. cnt = 2가 되지 않는가?!
+//2. 주소가 바뀌었다면 free가 일어난 것.
+//2-1. part2도 수정해야 한다.
+//3. ptr에 기존에 없던 것이 들어오면 malloc처럼 일한다.
+
+//realloc은 무조건 dealloc 후 alloc이다.
+// illigal free : list에 들어있지 않은, 즉, 한 번도 alloc되지 않은 위치에 realloc
+// double free : 이미 free(dealloc)된 위치에 다시 realloc을 시킬 때.
+// 하지만 realloc명령어를 통해 dealloc하는 과정에서 illigal/double free가 일어나도
+// 그 자리에 alloc은 된다.
 void* realloc(void* rptr, size_t size){
     char* error;
     reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
@@ -120,12 +131,31 @@ void* realloc(void* rptr, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr = reallocp(rptr, size);       // call libc realloc
-    LOG_REALLOC(rptr, size, ptr);
 
-    n_freeb += dealloc(list, rptr)->size;   // dealloc & count freed bytes
-    alloc(list, ptr, size);     // alloc new size & pointer
-    n_allocb += size;           // total allocated bytes
+    void* ptr;
+    item* target = find(list, rptr);
+    // illigal free - never used
+    if (!target){
+        ptr = reallocp(NULL, size);     // works like malloc(size)
+        alloc(list, ptr, size);
+        LOG_REALLOC(rptr, size, ptr);
+        LOG_ILL_FREE();
+        n_allocb += size;               // total allocated bytes
+    // double free
+    }else if(target->cnt == 0){
+        ptr = reallocp(NULL, size);     // works like malloc(size)
+        alloc(list, ptr, size);
+        LOG_REALLOC(rptr, size, ptr);
+        LOG_DOUBLE_FREE();
+        n_allocb += size;               // total allocated bytes
+    // normal realloc
+    }else{
+        ptr = reallocp(rptr, size);             // call libc realloc
+        LOG_REALLOC(rptr, size, ptr);
+        n_freeb += dealloc(list, rptr)->size;   // dealloc & count freed bytes
+        alloc(list, ptr, size);                 // alloc new size & pointer
+        n_allocb += size;                       // total allocated bytes
+    }
     n_realloc ++;               // total realloc call
     return ptr;
 }
