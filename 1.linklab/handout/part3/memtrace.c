@@ -45,7 +45,6 @@ void init(void)
   // (not needed for part 1)
   list = new_list();
 
-  // ...
 }
 
 //
@@ -77,6 +76,8 @@ void fini(void)
     free_list(list);
 }
 
+
+
 void* malloc(size_t size){
     char* error;
     mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
@@ -93,6 +94,8 @@ void* malloc(size_t size){
     n_malloc ++;                // total malloc call
     return ptr;
 }
+
+
 
 void* calloc(size_t nmemb, size_t size){
     char* error;
@@ -112,17 +115,8 @@ void* calloc(size_t nmemb, size_t size){
     return ptr;
 }
 
-//TODO: 1. realloc의 return이 ptr과 동일하다면 free가 일어나지 않음. 사이즈만 커진 것이다.
-//1-1. cnt = 2가 되지 않는가?!
-//2. 주소가 바뀌었다면 free가 일어난 것.
-//2-1. part2도 수정해야 한다.
-//3. ptr에 기존에 없던 것이 들어오면 malloc처럼 일한다.
 
-//realloc은 무조건 dealloc 후 alloc이다.
-// illigal free : list에 들어있지 않은, 즉, 한 번도 alloc되지 않은 위치에 realloc
-// double free : 이미 free(dealloc)된 위치에 다시 realloc을 시킬 때.
-// 하지만 realloc명령어를 통해 dealloc하는 과정에서 illigal/double free가 일어나도
-// 그 자리에 alloc은 된다.
+
 void* realloc(void* rptr, size_t size){
     char* error;
     reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
@@ -131,9 +125,9 @@ void* realloc(void* rptr, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-
     void* ptr;
     item* target = find(list, rptr);
+
     // illigal free - never used
     if (!target){
         ptr = reallocp(NULL, size);     // works like malloc(size)
@@ -159,6 +153,8 @@ void* realloc(void* rptr, size_t size){
     n_realloc ++;               // total realloc call
     return ptr;
 }
+
+
 
 void free(void* ptr){
     if (!ptr){ return; }
