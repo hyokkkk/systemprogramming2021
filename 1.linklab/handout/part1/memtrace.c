@@ -98,7 +98,12 @@ void* calloc(size_t nmemb, size_t size){
     return ptr;
 }
 
-void* realloc(void* rptr, size_t size){
+/*****************************************************************/
+/* 1. old size >= new size : 아무 일도 일어나지 않는다.          */
+/* 2. old size < new size : always dealloc first, and then alloc */
+/* 3. log is updated only when alloc/dealloc has done            */
+/*****************************************************************/
+void* realloc(void* ptr, size_t size){
     char* error;
     reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
 
@@ -106,12 +111,15 @@ void* realloc(void* rptr, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr = reallocp(rptr, size);       // call libc realloc
-    LOG_REALLOC(rptr, size, ptr);
+    void* rptr = reallocp(ptr, size);       // call libc realloc
+    LOG_REALLOC(ptr, size, rptr);
 
+    // find old size
+    item* target = find(list, ptr);
+    size_t 
     n_allocb += size;           // total allocated bytes
     n_realloc ++;               // total realloc call
-    return ptr;
+    return rptr;
 }
 
 void free(void* ptr){
