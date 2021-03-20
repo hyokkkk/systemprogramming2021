@@ -92,7 +92,7 @@ void* calloc(size_t nmemb, size_t size){
     void* ptr = callocp(nmemb, size);       // call libc calloc
     LOG_CALLOC(nmemb, size, ptr);
 
-    unsigned long csize = nmemb * size;
+    size_t csize = nmemb * size;
     n_allocb += csize;          // total allocated bytes
     n_calloc ++;                // total calloc call
     return ptr;
@@ -116,7 +116,7 @@ void* realloc(void* ptr, size_t size){
 
     // find old size
     item* target = find(list, ptr);
-    size_t 
+    //FIXME: 여기 만질차례
     n_allocb += size;           // total allocated bytes
     n_realloc ++;               // total realloc call
     return rptr;
