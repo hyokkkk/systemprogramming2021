@@ -76,8 +76,7 @@ void fini(void)
     free_list(list);
 }
 
-
-
+//----------------------------------------
 void* malloc(size_t size){
     char* error;
     mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
@@ -95,8 +94,7 @@ void* malloc(size_t size){
     return ptr;
 }
 
-
-
+//----------------------------------------
 void* calloc(size_t nmemb, size_t size){
     char* error;
     callocp = dlsym(RTLD_NEXT, "calloc");   // get addr of libc calloc
@@ -114,8 +112,6 @@ void* calloc(size_t nmemb, size_t size){
     n_calloc ++;                // total calloc call
     return ptr;
 }
-
-
 
 /*****************************************************************/
 /* 1. old size >= new size : 아무 일도 일어나지 않는다.          */
@@ -151,22 +147,19 @@ void* realloc(void* ptr, size_t size){
         n_realloc ++;               // total realloc call
     // normal realloc
     }else{
+        rptr = reallocp(ptr, size);             // call libc realloc
+        LOG_REALLOC(ptr, size, rptr);
         if (target->size < size){
-            rptr = reallocp(ptr, size);             // call libc realloc
-            LOG_REALLOC(ptr, size, rptr);
             n_freeb += dealloc(list, ptr)->size;   // dealloc & count freed bytes
             alloc(list, rptr, size);                 // alloc new size & pointer
             n_allocb += size;                       // total allocated bytes
             n_realloc ++;               // total realloc call
-        }else{
-            LOG_REALLOC(ptr, size, rptr);
         }
     }
     return rptr;
 }
 
-
-
+//----------------------------------------
 void free(void* ptr){
     if (!ptr){ return; }
 
