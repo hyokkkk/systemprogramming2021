@@ -76,6 +76,7 @@ void* malloc(size_t size){
     void* ptr = mallocp(size);              // call libc malloc
     LOG_MALLOC(size, ptr);
 
+    alloc(list, ptr, size);     // in order to use list at realloc
     n_allocb += size;           // total allocated bytes
     n_malloc ++;                // total malloc call
     return ptr;
@@ -93,6 +94,7 @@ void* calloc(size_t nmemb, size_t size){
     LOG_CALLOC(nmemb, size, ptr);
 
     size_t csize = nmemb * size;
+    alloc(list, ptr, size);     // in order to use list at realloc
     n_allocb += csize;          // total allocated bytes
     n_calloc ++;                // total calloc call
     return ptr;
@@ -116,9 +118,12 @@ void* realloc(void* ptr, size_t size){
 
     // find old size
     item* target = find(list, ptr);
-    //FIXME: 여기 만질차례
-    n_allocb += size;           // total allocated bytes
-    n_realloc ++;               // total realloc call
+    if (target->size < size){
+        dealloc(list, ptr);
+        alloc(list, rptr, size);
+        n_allocb += size;           // total allocated bytes
+        n_realloc ++;               // total realloc call
+    }
     return rptr;
 }
 

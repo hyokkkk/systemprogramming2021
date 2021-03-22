@@ -117,7 +117,12 @@ void* calloc(size_t nmemb, size_t size){
 
 
 
-void* realloc(void* rptr, size_t size){
+/*****************************************************************/
+/* 1. old size >= new size : 아무 일도 일어나지 않는다.          */
+/* 2. old size < new size : always dealloc first, and then alloc */
+/* 3. log is updated only when alloc/dealloc has done            */
+/*****************************************************************/
+void* realloc(void* ptr, size_t size){
     char* error;
     reallocp = dlsym(RTLD_NEXT, "realloc"); // get addr of libc realloc
 
@@ -125,33 +130,39 @@ void* realloc(void* rptr, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr;
-    item* target = find(list, rptr);
+    void* rptr;
+    item* target = find(list, ptr);
 
     // illigal free - never used
     if (!target){
-        ptr = reallocp(NULL, size);     // works like malloc(size)
-        alloc(list, ptr, size);
-        LOG_REALLOC(rptr, size, ptr);
+        rptr = reallocp(NULL, size);     // works like malloc(size)
+        alloc(list, rptr, size);
+        LOG_REALLOC(ptr, size, rptr);
         LOG_ILL_FREE();
         n_allocb += size;               // total allocated bytes
+        n_realloc ++;               // total realloc call
     // double free
     }else if(target->cnt == 0){
-        ptr = reallocp(NULL, size);     // works like malloc(size)
-        alloc(list, ptr, size);
-        LOG_REALLOC(rptr, size, ptr);
+        rptr = reallocp(NULL, size);     // works like malloc(size)
+        alloc(list, rptr, size);
+        LOG_REALLOC(ptr, size, rptr);
         LOG_DOUBLE_FREE();
         n_allocb += size;               // total allocated bytes
+        n_realloc ++;               // total realloc call
     // normal realloc
     }else{
-        ptr = reallocp(rptr, size);             // call libc realloc
-        LOG_REALLOC(rptr, size, ptr);
-        n_freeb += dealloc(list, rptr)->size;   // dealloc & count freed bytes
-        alloc(list, ptr, size);                 // alloc new size & pointer
-        n_allocb += size;                       // total allocated bytes
+        if (target->size < size){
+            rptr = reallocp(ptr, size);             // call libc realloc
+            LOG_REALLOC(ptr, size, rptr);
+            n_freeb += dealloc(list, ptr)->size;   // dealloc & count freed bytes
+            alloc(list, rptr, size);                 // alloc new size & pointer
+            n_allocb += size;                       // total allocated bytes
+            n_realloc ++;               // total realloc call
+        }else{
+            LOG_REALLOC(ptr, size, rptr);
+        }
     }
-    n_realloc ++;               // total realloc call
-    return ptr;
+    return rptr;
 }
 
 
