@@ -115,14 +115,20 @@ void* calloc(size_t nmemb, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr = callocp(nmemb, size);       // call libc calloc
-    LOG_CALLOC(nmemb, size, ptr);
+    //TODO: malloc에 이어 0인 경우에는 그냥 null return하게 해놓음. either이니까. 
+    if (nmemb == 0 | size == 0){
+        LOG_CALLOC(nmemb, size, NULL);
+        return NULL;
+    }else {
+        void* ptr = callocp(nmemb, size);       // call libc calloc
+        LOG_CALLOC(nmemb, size, ptr);
 
-    unsigned long csize = nmemb * size;
-    alloc(list, ptr, csize);                // insert in the list
-    n_allocb += csize;                      // total allocated bytes
-    n_calloc ++;                            // total calloc call
-    return ptr;
+        unsigned long csize = nmemb * size;
+        alloc(list, ptr, csize);                // insert in the list
+        n_allocb += csize;                      // total allocated bytes
+        n_calloc ++;                            // total calloc call
+        return ptr;
+    }
 }
 
 /*****************************************************************/
