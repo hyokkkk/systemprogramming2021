@@ -92,13 +92,18 @@ void* malloc(size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr = mallocp(size);              // call libc malloc
-    LOG_MALLOC(size, ptr);
+    if (size == 0){
+        LOG_MALLOC(size, NULL);
+        return NULL;
+    }else{
+        void* ptr = mallocp(size);              // call libc malloc
+        LOG_MALLOC(size, ptr);
 
-    alloc(list, ptr, size);                 // insert in the list
-    n_allocb += size;                       // total allocated bytes
-    n_malloc ++;                            // total malloc call
-    return ptr;
+        alloc(list, ptr, size);                 // insert in the list
+        n_allocb += size;                       // total allocated bytes
+        n_malloc ++;                            // total malloc call
+        return ptr;
+    }
 }
 
 //----------------------------------------
