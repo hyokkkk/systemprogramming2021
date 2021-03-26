@@ -155,7 +155,7 @@ void* realloc(void* ptr, size_t size){
         return NULL;
     // normal ptr & size
     }else {
-        LOG_REALLOC(ptr, size, ptr);
+        LOG_REALLOC(ptr, size, rptr);
         if (target->size < size){
             n_freeb += dealloc(list, ptr)->size;// dealloc & count freed bytes
             alloc(list, rptr, size);            // alloc new size & pointer

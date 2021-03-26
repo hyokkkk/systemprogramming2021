@@ -4,7 +4,6 @@
 int main(void)
 {
   void *a;
-
   a = malloc(1024);
   free(a);
   free(a);              // double free
