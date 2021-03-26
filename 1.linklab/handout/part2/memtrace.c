@@ -86,13 +86,18 @@ void* malloc(size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr = mallocp(size);              // call libc malloc
-    LOG_MALLOC(size, ptr);
+    if (size == 0){
+        LOG_MALLOC(size, NULL);
+        return NULL;
+    }else{
+        void* ptr = mallocp(size);              // call libc malloc
+        LOG_MALLOC(size, ptr);
 
-    alloc(list, ptr, size);                 // insert in the list
-    n_allocb += size;                       // total allocated bytes
-    n_malloc ++;                            // total malloc call
-    return ptr;
+        alloc(list, ptr, size);                 // insert in the list
+        n_allocb += size;                       // total allocated bytes
+        n_malloc ++;                            // total malloc call
+        return ptr;
+    }
 }
 
 //----------------------------------------------
@@ -104,14 +109,20 @@ void* calloc(size_t nmemb, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    void* ptr = callocp(nmemb, size);       // call libc calloc
-    LOG_CALLOC(nmemb, size, ptr);
+    // malloc에 이어 0인 경우에는 그냥 null return하게 해놓음. either이니까.
+    if (nmemb == 0 | size == 0){
+        LOG_CALLOC(nmemb, size, NULL);
+        return NULL;
+    }else {
+        void* ptr = callocp(nmemb, size);       // call libc calloc
+        LOG_CALLOC(nmemb, size, ptr);
 
-    unsigned long csize = nmemb * size;
-    alloc(list, ptr, csize);                // insert in the list
-    n_allocb += csize;                      // total allocated bytes
-    n_calloc ++;                            // total calloc call
-    return ptr;
+        unsigned long csize = nmemb * size;
+        alloc(list, ptr, csize);                // insert in the list
+        n_allocb += csize;                      // total allocated bytes
+        n_calloc ++;                            // total calloc call
+        return ptr;
+    }
 }
 
 /*****************************************************************/
@@ -128,16 +139,31 @@ void* realloc(void* ptr, size_t size){
         exit(1);
     }
     void* rptr = reallocp(ptr, size); // call libc realloc
-    LOG_REALLOC(ptr, size, ptr);
-
     item* target = find(list, ptr);
-    if (target->size < size){
-        n_freeb += dealloc(list, ptr)->size;// dealloc & count freed bytes
-        alloc(list, rptr, size);            // alloc new size & pointer
-        n_allocb += size;                   // total allocated bytes
-        n_realloc ++;                       // total realloc call
+
+    // size 0 인 경우 free(ptr)처럼 작동.
+    if (size == 0) {
+        char* ferror;
+        freep = dlsym(RTLD_NEXT, "free");       // Get address of libc free
+        if ((ferror = dlerror()) != NULL){
+            fputs(ferror, stderr);
+            exit(1);
+        }
+        LOG_REALLOC(ptr, size, NULL);
+        n_freeb += dealloc(list, ptr)->size;    // freed bytes
+        freep(ptr);                             // call libc free
+        return NULL;
+    // normal ptr & size
+    }else {
+        LOG_REALLOC(ptr, size, ptr);
+        if (target->size < size){
+            n_freeb += dealloc(list, ptr)->size;// dealloc & count freed bytes
+            alloc(list, rptr, size);            // alloc new size & pointer
+            n_allocb += size;                   // total allocated bytes
+            n_realloc ++;                       // total realloc call
+        }
+        return rptr;
     }
-    return rptr;
 }
 
 //----------------------------------------------

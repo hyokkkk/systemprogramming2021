@@ -82,9 +82,6 @@ void fini(void)
 
 //----------------------------------------
 void* malloc(size_t size){
-    //TODO: delete
-    mlog("여기는 malloc");
-
     char* error;
     mallocp = dlsym(RTLD_NEXT, "malloc");   // get addr of libc malloc
 
@@ -115,7 +112,7 @@ void* calloc(size_t nmemb, size_t size){
         fputs(error, stderr);
         exit(1);
     }
-    //TODO: malloc에 이어 0인 경우에는 그냥 null return하게 해놓음. either이니까. 
+    // malloc에 이어 0인 경우에는 그냥 null return하게 해놓음. either이니까.
     if (nmemb == 0 | size == 0){
         LOG_CALLOC(nmemb, size, NULL);
         return NULL;
@@ -137,9 +134,6 @@ void* calloc(size_t nmemb, size_t size){
 /* 3. log is updated only when alloc/dealloc has done            */
 /*****************************************************************/
 void* realloc(void* ptr, size_t size){
-    //TODO: delete
-    mlog("realloc(NULL, size);가 일단 realloc으로 들어오는지");
-
     char* error;
     reallocp = dlsym(RTLD_NEXT, "realloc");         // get addr of libc realloc
 
@@ -150,9 +144,6 @@ void* realloc(void* ptr, size_t size){
     void* rptr;
     item* target = find(list, ptr);
 
-    //TODO: size 0인 경우. ptr null인 경우.
-    //ptr 만 null인 경우는 애초에 malloc으로 보는 것 같은데? 아예 interpositioning이 안 됨
-
     // size 0 인 경우 free(ptr)처럼 작동.
     if (size == 0) {
         char* ferror;
@@ -161,15 +152,14 @@ void* realloc(void* ptr, size_t size){
             fputs(ferror, stderr);
             exit(1);
         }
-        LOG_REALLOC(ptr, size, rptr);
+        LOG_REALLOC(ptr, size, NULL);
 
         // to check illigal free and double free
         if (!target){ LOG_ILL_FREE(); }
         else if(target->cnt == 0){ LOG_DOUBLE_FREE(); }
         else {
-            n_freeb += dealloc(list, ptr)->size;    //freed bytes
-            n_realloc ++;                           // total realloc call
-            freep(ptr);                             // call libc realloc
+            n_freeb += dealloc(list, ptr)->size;    // freed bytes
+            freep(ptr);                             // call libc free
         }
         return NULL;
     // normal ptr & size
@@ -201,17 +191,13 @@ void* realloc(void* ptr, size_t size){
                 n_realloc ++;                       // total realloc call
             }
         }
+        return rptr;
     }
-    return rptr;
 }
 
 //----------------------------------------
 void free(void* ptr){
-    if (!ptr){
-        //TODO: delete
-        mlog("free(NULL);은 여기로 와야 함");
-        LOG_FREE(ptr);
-        return; }
+    if (!ptr){ return; }                            // compiler가 코드를 없애므로 사실은 필요없는 부분
 
     char* error;
     freep = dlsym(RTLD_NEXT, "free");               // Get address of libc free

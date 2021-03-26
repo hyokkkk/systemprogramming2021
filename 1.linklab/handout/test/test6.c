@@ -7,12 +7,12 @@ int main(void)
 
   a = malloc(1024);
   free(a);
-  free(a); // double free
-  free((void*)0xcafe); // ill free
-  realloc(a, 20); // double free
+  free(a);              // double free
+  free((void*)0xcafe);  // ill free
+  realloc(a, 20);       // realloc double free
   void* b = malloc(40);
-  realloc(b, 30); // size가 줄어들어서 nothing happens
-  realloc((void*)0xdeadbeef, 50); // ill free
+  realloc(b, 30);       // size가 줄어들어서 nothing happens
+  realloc((void*)0xdeadbeef, 50); // realloc ill free
 
   /*statistics*/
   // total alloc : 1024 + 20 + 40 + 50 = 1134
