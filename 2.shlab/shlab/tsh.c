@@ -1,7 +1,9 @@
 /*
  * tsh - A tiny shell program with job control
  *
- * <Put your student number and login ID here>
+ * 2012-13311
+ * stu3@sp1.snucse.org
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
