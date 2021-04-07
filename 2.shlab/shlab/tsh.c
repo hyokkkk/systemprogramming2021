@@ -101,17 +101,17 @@ int main(int argc, char **argv)
     /* Parse the command line */
     while ((c = getopt(argc, argv, "hvp")) != EOF) {
         switch (c) {
-        case 'h':             /* print help message */
-            usage();
-       	    break;
-        case 'v':             /* emit additional diagnostic info */
-            verbose = 1;
-	          break;
-        case 'p':             /* don't print a prompt */
-            emit_prompt = 0;  /* handy for automatic testing */
-	          break;
-         default:
-            usage();
+            case 'h':             /* print help message */
+                usage();
+                break;
+            case 'v':             /* emit additional diagnostic info */
+                verbose = 1;
+                break;
+            case 'p':             /* don't print a prompt */
+                emit_prompt = 0;  /* handy for automatic testing */
+                break;
+            default:
+                usage();
 	      }
     }
 
@@ -130,18 +130,21 @@ int main(int argc, char **argv)
 
     /* Execute the shell's read/eval loop */
     while (1) {
+
       /* Read command line */
         if (emit_prompt) {
             printf("%s", prompt);
             fflush(stdout);
         }
-        if ((fgets(cmdline, MAXLINE, stdin) == NULL) && ferror(stdin))
-           app_error("fgets error");
-            if (feof(stdin)) { /* End of file (ctrl-d) */
-               fflush(stdout);
-               exit(0);
-            }
-      /* Evaluate the command line */
+        if ((fgets(cmdline, MAXLINE, stdin) == NULL) && ferror(stdin)){
+            app_error("fgets error");
+        }
+        if (feof(stdin)) { /* End of file (ctrl-d) */
+            fflush(stdout);
+            exit(0);
+        }
+
+        /* Evaluate the command line */
         eval(cmdline);
         fflush(stdout);
         fflush(stdout);
@@ -193,15 +196,16 @@ int parseline(const char *cmdline, char **argv)
         delim = strchr(buf, '\'');
     }
     else {
-       	delim = strchr(buf, ' ');
+        delim = strchr(buf, ' ');
     }
 
     while (delim) {
         argv[argc++] = buf;
         *delim = '\0';
         buf = delim + 1;
-        while (*buf && (*buf == ' ')) /* ignore spaces */
+        while (*buf && (*buf == ' ')){ /* ignore spaces */
             buf++;
+        }
 
         if (*buf == '\'') {
             buf++;
@@ -211,10 +215,11 @@ int parseline(const char *cmdline, char **argv)
             delim = strchr(buf, ' ');
         }
     }
-
     argv[argc] = NULL;
-    if (argc == 0)  /* ignore blank line */
-	      return 1;
+
+    if (argc == 0){  /* ignore blank line */
+        return 1;
+    }
 
     /* should the job run in the background? */
     if ((bg = (*argv[argc-1] == '&')) != 0) {
@@ -327,18 +332,18 @@ int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
 {
     int i;
 
-    if (pid < 1) return 0;
-
+    if (pid < 1){
+        return 0;
+    }
     for (i = 0; i < MAXJOBS; i++) {
         if (jobs[i].pid == 0) {
             jobs[i].pid = pid;
             jobs[i].state = state;
             jobs[i].jid = nextjid++;
-
-            if (nextjid > MAXJOBS){ nextjid = 1; }
-
+            if (nextjid > MAXJOBS){
+                nextjid = 1;
+            }
             strcpy(jobs[i].cmdline, cmdline);
-
             if(verbose){
                 printf("Added job [%d] %d %s\n", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
             }
@@ -354,7 +359,9 @@ int deletejob(struct job_t *jobs, pid_t pid)
 {
     int i;
 
-    if (pid < 1){ return 0; }
+    if (pid < 1){
+        return 0;
+    }
 
     for (i = 0; i < MAXJOBS; i++) {
         if (jobs[i].pid == pid) {
@@ -382,9 +389,13 @@ pid_t fgpid(struct job_t *jobs) {
 struct job_t *getjobpid(struct job_t *jobs, pid_t pid) {
     int i;
 
-    if (pid < 1){ return NULL; }
+    if (pid < 1){
+        return NULL;
+    }
     for (i = 0; i < MAXJOBS; i++){
-        if (jobs[i].pid == pid){ return &jobs[i]; }
+        if (jobs[i].pid == pid){
+            return &jobs[i];
+        }
     }
     return NULL;
 }
@@ -394,9 +405,13 @@ struct job_t *getjobjid(struct job_t *jobs, int jid)
 {
     int i;
 
-    if (jid < 1){ return NULL; }
+    if (jid < 1){
+        return NULL;
+    }
     for (i = 0; i < MAXJOBS; i++){
-        if (jobs[i].jid == jid){ return &jobs[i]; }
+        if (jobs[i].jid == jid){
+            return &jobs[i];
+        }
     }
     return NULL;
 }
@@ -406,7 +421,9 @@ int pid2jid(pid_t pid)
 {
     int i;
 
-    if (pid < 1){ return 0; }
+    if (pid < 1){
+        return 0;
+    }
     for (i = 0; i < MAXJOBS; i++){
         if (jobs[i].pid == pid) {
             return jobs[i].jid;
@@ -434,8 +451,7 @@ void listjobs(struct job_t *jobs)
                     printf("Stopped ");
                     break;
                 default:
-                    printf("listjobs: Internal error: job[%d].state=%d ",
-                    i, jobs[i].state);
+                    printf("listjobs: Internal error: job[%d].state=%d ", i, jobs[i].state);
             }
             printf("%s", jobs[i].cmdline);
         }
