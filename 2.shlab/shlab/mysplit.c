@@ -26,7 +26,7 @@ int main(int argc, char **argv)
         for (i=0; i < secs; i++){
             sleep(1);
         }
-	      exit(0);
+        exit(0);
     }
 
     /* parent waits for child to terminate */
