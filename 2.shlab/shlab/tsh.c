@@ -167,6 +167,31 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline)
 {
+    char* argv[MAXARGS];    // argv for execve()
+    char buf[MAXLINE];      // holds modified command line
+    int bg;
+    pid_t pid;
+
+    strcpy(buf, cmdline);
+    bg = parseline(cmdline, argv);
+    if (argv[0] == NULL){ return ; }    // ignore empty lines
+
+    if (!builtin_cmd(argv)){
+        if ((pid = fork()) == 0){
+            if (execve(argv[0], argv, environ) < 0){
+                printf("%s: Command not found. \n", argv[0]);
+                exit(0);
+            }
+        }
+        if (!bg){
+            int status;
+            if (waitpid(pid, &status, 0) < 0){
+                unix_error("waitfg: waitpid error");
+            }
+        }else{
+            printf("%d %s", pid, cmdline);
+        }
+    }
     return;
 }
 
@@ -236,6 +261,12 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv)
 {
+    // jobs, quit, bg or fg
+    if (!strcmp(argv[0], "quit")){      // 같으면 0나옴.
+        exit(0);
+    }else if (!strcmp(argv[0], "jobs")){
+    }
+
     return 0;     /* not a builtin command */
 }
 
