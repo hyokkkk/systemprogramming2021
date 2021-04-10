@@ -185,11 +185,16 @@ void eval(char *cmdline)
         }
         if (!bg){
             int status;
+            addjob(jobs, pid, 1, cmdline);
             if (waitpid(pid, &status, 0) < 0){
                 unix_error("waitfg: waitpid error");
             }
+            deletejob(jobs, pid);
         }else{
-            printf("%d %s", pid, cmdline);
+            addjob(jobs, pid, 2, cmdline);
+            printf("[%d] (%d) %s", jobs->jid, pid, cmdline);
+            //TODO: bg terminate되면 deletejob해야하는데 
+            //언제할지 모르겠음.
         }
     }
     return;
@@ -265,6 +270,12 @@ int builtin_cmd(char **argv)
     if (!strcmp(argv[0], "quit")){      // 같으면 0나옴.
         exit(0);
     }else if (!strcmp(argv[0], "jobs")){
+        // list the running and stopped background jobs라고 돼있는데, ./tshref는 fg도 다 list하는데?
+        listjobs(jobs);
+        return 1;
+    }else if (!strcmp(argv[0], "fg") || !strcmp(argv[0], "bg")){
+        do_bgfg(argv);
+        return 1;
     }
 
     return 0;     /* not a builtin command */
@@ -275,6 +286,13 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
+    // change a stopped or running background job to a running in the foreground
+    if (!strcmp(argv[0], "fg")){
+        //TODO: 
+
+
+    }
+
     return;
 }
 
@@ -433,7 +451,7 @@ struct job_t *getjobpid(struct job_t *jobs, pid_t pid) {
     return NULL;
 }
 
-/* getjobjid  - Find a job (by JID) on the job list */
+/* getjobid  - Find a job (by JID) on the job list */
 struct job_t *getjobjid(struct job_t *jobs, int jid)
 {
     int i;
