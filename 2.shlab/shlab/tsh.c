@@ -6,6 +6,7 @@
  *
  */
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -86,6 +87,9 @@ void unix_error(char *msg);
 void app_error(char *msg);
 typedef void handler_t(int);
 handler_t *Signal(int signum, handler_t *handler);
+
+// self-made function prototypes
+void safe_printf(const char* format, ...);
 
 /*
  * main - The shell's main routine
@@ -169,7 +173,7 @@ void eval(char *cmdline)
 {
     char* argv[MAXARGS];    // argv for execve()
     char buf[MAXLINE];      // holds modified command line
-    int bg;
+    int bg;                 // background?
     pid_t pid;
 
     strcpy(buf, cmdline);
@@ -186,7 +190,8 @@ void eval(char *cmdline)
         if (!bg){
             int status;
             addjob(jobs, pid, 1, cmdline);
-            if (waitpid(pid, &status, 0) < 0){
+
+            if (waitpid(pid, &status, 0)< 0){
                 unix_error("waitfg: waitpid error");
             }else{
                 deletejob(jobs, pid);
@@ -316,9 +321,32 @@ void waitfg(pid_t pid)
  *     available zombie children, but doesn't wait for any other
  *     currently running children to terminate.
  */
+//TODO: sigint, sigtstp불리면 sigchld 안 불리는 줄 알았음.
+//한 경우에 하나씩만 오는 줄 알았다.. 와우...
+// sigtstp이 fg로 가기 전에 fg가 종료돼버린다.
 void sigchld_handler(int sig)
 {
-    return;
+    int status;
+    pid_t pid;
+    // 이미 종료되어 waitset에 들어와있는 애들만 reap한다.
+    // not only terminated, but also stopped
+    while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
+        int jid = pid2jid(pid);
+
+        // exited normally
+        if (WIFEXITED(status)){
+            deletejob(jobs, pid);
+        // terminated by SIGINT
+        }else if (WIFSIGNALED(status)){
+            deletejob(jobs, pid);
+            safe_printf("Job [%d] (%d) terminated by signal %d\n",
+                    jid, pid, WTERMSIG(status));
+        // stopped by SIGTSTP
+        }else if (WIFSTOPPED(status)){
+            safe_printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, WSTOPSIG(status));
+            getjobpid(jobs, pid)->state=ST;
+        }
+    }
 }
 
 /*
@@ -328,13 +356,16 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig)
 {
-    for (int i = 0; i < maxjid(jobs); i++){
-        if (jobs[i].state==FG){
-            printf("Job [%d] (%d) terminated by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
-            //FIXME: -pid로 해야하는지 고민해봐야 함. 06, 07p
-            kill(jobs[i].pid, 9);
-        }
-    }
+    int pid = fgpid(jobs);
+    kill(-pid, SIGINT);
+
+//    for (int i = 0; i < maxjid(jobs); i++){
+//        if (jobs[i].state==FG){
+//            safe_printf("Job [%d] (%d) terminated by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
+//            //FIXME: -pid로 해야하는지 고민해봐야 함. 06, 07p
+//            kill(-jobs[i].pid, SIGKILL);
+//        }
+//    }
 }
 
 /*
@@ -344,7 +375,22 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig)
 {
-    return;
+    int pid = fgpid(jobs);
+    kill(-pid, SIGTSTP);
+
+//    for (int i = 0; i < MAXJOBS; i++){
+//        if (jobs[i].state==FG){
+//            kill(-jobs[i].pid, SIGTSTP);
+//            safe_printf("Job [%d] (%d) stopped by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
+//            jobs[i].state=ST;
+//            //TODO:
+//            safe_printf("sig 보내기 전:\n");
+//            listjobs(jobs);
+//            //TODO:
+//            safe_printf("sig 보내기 후:\n");
+//            listjobs(jobs);
+//        }
+//    }
 }
 
 /*********************
@@ -581,5 +627,17 @@ void sigquit_handler(int sig)
     exit(1);
 }
 
+
+
+// self-made functions
+void safe_printf(const char* format, ...){
+    char buf[MAXLINE];
+    va_list args;
+
+    va_start(args, format);
+    vsnprintf(buf, sizeof(buf), format, args);
+    va_end(args);
+    write(1, buf, strlen(buf));
+}
 
 
