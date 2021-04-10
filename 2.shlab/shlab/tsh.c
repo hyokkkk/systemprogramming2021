@@ -188,12 +188,13 @@ void eval(char *cmdline)
             addjob(jobs, pid, 1, cmdline);
             if (waitpid(pid, &status, 0) < 0){
                 unix_error("waitfg: waitpid error");
+            }else{
+                deletejob(jobs, pid);
             }
-            deletejob(jobs, pid);
         }else{
             addjob(jobs, pid, 2, cmdline);
             printf("[%d] (%d) %s", jobs->jid, pid, cmdline);
-            //TODO: bg terminate되면 deletejob해야하는데 
+            //TODO: bg terminate되면 deletejob해야하는데
             //언제할지 모르겠음.
         }
     }
@@ -288,7 +289,7 @@ void do_bgfg(char **argv)
 {
     // change a stopped or running background job to a running in the foreground
     if (!strcmp(argv[0], "fg")){
-        //TODO: 
+        //TODO:
 
 
     }
@@ -327,7 +328,13 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig)
 {
-    return;
+    for (int i = 0; i < maxjid(jobs); i++){
+        if (jobs[i].state==FG){
+            printf("Job [%d] (%d) terminated by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
+            //FIXME: -pid로 해야하는지 고민해봐야 함. 06, 07p
+            kill(jobs[i].pid, 9);
+        }
+    }
 }
 
 /*
