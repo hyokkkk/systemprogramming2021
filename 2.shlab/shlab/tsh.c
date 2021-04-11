@@ -168,42 +168,80 @@ int main(int argc, char **argv)
  * background children don't receive SIGINT (SIGTSTP) from the kernel
  * when we type ctrl-c (ctrl-z) at the keyboard.
 */
-void eval(char *cmdline)
-{
-    char* argv[MAXARGS];    // argv for execve()
-    int bg = parseline(cmdline, argv);
-    pid_t pid;
 
-    if (!argv[0]){ return ; }    // ignore empty lines
+void eval(char *cmdline) {
+  char *argv[MAXARGS];
+  const int is_foreground = !parseline(cmdline, argv);
 
-    // should block signals before fork()
-    sigset_t mask = {};
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask, NULL);
+  // Ignore empty input and built-in command
+  if (!argv[0] || builtin_cmd(argv)) { return; }
 
-    if (!builtin_cmd(argv)){
-        if ((pid = fork()) == 0){
-            // set pgid same as current pid.
-            setpgid(0, 0);
-            // should unblock signals before execve()
-            sigprocmask(SIG_UNBLOCK, &mask, NULL);
-            if (execve(argv[0], argv, environ) < 0){
-            // execve는 error일 때에만 ret하니까 여기서 멈춤.
-                printf("%s: Command not found\n", argv[0]);
-                exit(0);
-            }
-        }
-        addjob(jobs, pid, bg ? BG : FG, cmdline);
-        sigprocmask(SIG_UNBLOCK, &mask, NULL);
-        if (!bg){
-            waitfg(pid);
-        }else{
-            printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
-        }
-    }
-    return ;
+  sigset_t set = {};
+  sigemptyset(&set);
+  sigaddset(&set, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &set, NULL);
+
+  pid_t pid = fork();
+
+  // Codes for child process
+  if (!pid) {
+    // Set pgid as 0
+    setpgid(0, 0);
+    sigprocmask(SIG_UNBLOCK, &set, NULL);
+    execve(argv[0], argv, environ);
+    // `execve` returns only on error cases
+    printf("%s: Command not found\n", argv[0]);
+    exit(1);
+  }
+
+  addjob(jobs, pid, is_foreground ? FG : BG, cmdline);
+  sigprocmask(SIG_UNBLOCK, &set, NULL);
+  if (is_foreground) {
+    // Wait until foreground job finishes
+    waitfg(pid);
+  } else {
+    // Print information of the background job and proceed
+    printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+  }
 }
+
+
+//void eval(char *cmdline)
+//{
+//    char* argv[MAXARGS];    // argv for execve()
+//    int bg = parseline(cmdline, argv);
+//    pid_t pid;
+//
+//    if (!argv[0]){ return ; }    // ignore empty lines
+//
+//    // should block signals before fork()
+//    sigset_t mask = {};
+//    sigemptyset(&mask);
+//    sigaddset(&mask, SIGCHLD);
+//    sigprocmask(SIG_BLOCK, &mask, NULL);
+//
+//    if (!builtin_cmd(argv)){
+//        if ((pid = fork()) == 0){
+//            // set pgid same as current pid.
+//            setpgid(0, 0);
+//            // should unblock signals before execve()
+//            sigprocmask(SIG_UNBLOCK, &mask, NULL);
+//            if (execve(argv[0], argv, environ) < 0){
+//            // execve는 error일 때에만 ret하니까 여기서 멈춤.
+//                printf("%s: Command not found\n", argv[0]);
+//                exit(0);
+//            }
+//        }
+//        addjob(jobs, pid, bg ? BG : FG, cmdline);
+//        sigprocmask(SIG_UNBLOCK, &mask, NULL);
+//        if (!bg){
+//            waitfg(pid);
+//        }else{
+//            printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
+//        }
+//    }
+//    return ;
+//}
 
 /*
  * parseline - Parse the command line and build the argv array.
