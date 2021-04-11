@@ -175,30 +175,46 @@ void eval(char *cmdline)
     char buf[MAXLINE];      // holds modified command line
     int bg;                 // background?
     pid_t pid;
+    sigset_t mask = {};//curr_mask, prev_mask;
 
     strcpy(buf, cmdline);
     bg = parseline(cmdline, argv);
     if (argv[0] == NULL){ return ; }    // ignore empty lines
 
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask, NULL);
+
     if (!builtin_cmd(argv)){
+        // should block signals before fork()
+
         if ((pid = fork()) == 0){
+            // set pgid same as current pid.
+            setpgid(0, 0);
+            // should unblock signals before execve()
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);
             if (execve(argv[0], argv, environ) < 0){
+            // execve는 error일 때에만 ret하니까 여기서 멈춤.
                 printf("%s: Command not found. \n", argv[0]);
                 exit(0);
             }
         }
+        addjob(jobs, pid, bg ? BG : FG, cmdline);
+        sigprocmask(SIG_UNBLOCK, &mask, NULL);
         if (!bg){
-            int status;
-            addjob(jobs, pid, 1, cmdline);
-
-            if (waitpid(pid, &status, 0)< 0){
-                unix_error("waitfg: waitpid error");
-            }else{
-                deletejob(jobs, pid);
-            }
+            waitfg(pid);
+//            int status;
+//            //TODO:
+//            printf("여긴가1\n");
+//
+//            if (waitpid(pid, &status, 0)< 0){
+//                unix_error("waitfg: waitpid error");
+//            }else{
+//            //TODO:
+//            printf("여긴가2\n");
+//            }
         }else{
-            addjob(jobs, pid, 2, cmdline);
-            printf("[%d] (%d) %s", jobs->jid, pid, cmdline);
+            printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
             //TODO: bg terminate되면 deletejob해야하는데
             //언제할지 모르겠음.
         }
@@ -307,7 +323,13 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    return;
+    struct job_t* jobp = getjobpid(jobs, pid);
+    if (!jobp) {
+        app_error("no job element exists");
+        return; }
+    while(jobp->state == FG){
+        sleep(1);
+    }
 }
 
 /*****************
