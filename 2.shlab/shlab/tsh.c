@@ -136,7 +136,6 @@ int main(int argc, char **argv)
 
     /* Execute the shell's read/eval loop */
     while (1) {
-
       /* Read command line */
         if (emit_prompt) {
             printf("%s", prompt);
@@ -172,22 +171,18 @@ int main(int argc, char **argv)
 void eval(char *cmdline)
 {
     char* argv[MAXARGS];    // argv for execve()
-    char buf[MAXLINE];      // holds modified command line
-    int bg;                 // background?
+    int bg = parseline(cmdline, argv);
     pid_t pid;
-    sigset_t mask = {};//curr_mask, prev_mask;
 
-    strcpy(buf, cmdline);
-    bg = parseline(cmdline, argv);
-    if (argv[0] == NULL){ return ; }    // ignore empty lines
+    if (!argv[0]){ return ; }    // ignore empty lines
 
+    // should block signals before fork()
+    sigset_t mask = {};
     sigemptyset(&mask);
     sigaddset(&mask, SIGCHLD);
     sigprocmask(SIG_BLOCK, &mask, NULL);
 
     if (!builtin_cmd(argv)){
-        // should block signals before fork()
-
         if ((pid = fork()) == 0){
             // set pgid same as current pid.
             setpgid(0, 0);
@@ -195,7 +190,7 @@ void eval(char *cmdline)
             sigprocmask(SIG_UNBLOCK, &mask, NULL);
             if (execve(argv[0], argv, environ) < 0){
             // execve는 error일 때에만 ret하니까 여기서 멈춤.
-                printf("%s: Command not found. \n", argv[0]);
+                printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
         }
@@ -203,23 +198,11 @@ void eval(char *cmdline)
         sigprocmask(SIG_UNBLOCK, &mask, NULL);
         if (!bg){
             waitfg(pid);
-//            int status;
-//            //TODO:
-//            printf("여긴가1\n");
-//
-//            if (waitpid(pid, &status, 0)< 0){
-//                unix_error("waitfg: waitpid error");
-//            }else{
-//            //TODO:
-//            printf("여긴가2\n");
-//            }
         }else{
             printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
-            //TODO: bg terminate되면 deletejob해야하는데
-            //언제할지 모르겠음.
         }
     }
-    return;
+    return ;
 }
 
 /*
@@ -295,7 +278,10 @@ int builtin_cmd(char **argv)
         // list the running and stopped background jobs라고 돼있는데, ./tshref는 fg도 다 list하는데?
         listjobs(jobs);
         return 1;
-    }else if (!strcmp(argv[0], "fg") || !strcmp(argv[0], "bg")){
+    }else if (!strcmp(argv[0], "fg")){
+        do_bgfg(argv);
+        return 1;
+    }else if (!strcmp(argv[0], "bg")){
         do_bgfg(argv);
         return 1;
     }
@@ -308,12 +294,63 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
-    // change a stopped or running background job to a running in the foreground
-    if (!strcmp(argv[0], "fg")){
-        //TODO:
-
-
+    if (!argv[1]){
+        safe_printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        return ;
     }
+    int jid;
+    pid_t pid;
+    struct job_t* job;
+
+    // 1. jid 인 경우
+    if (argv[1][0]=='%'){
+        jid = atoi(&argv[1][1]);
+        job = getjobjid(jobs, jid);
+        if (!job){
+            safe_printf("%%%d: No such job\n", jid);
+            return ;
+        }
+        pid = job->pid;
+    // 2. pid인 경우
+    }else if (isdigit(argv[1][0])){
+        pid = atoi(argv[1]);
+        job = getjobpid(jobs, pid);
+        if (!job){
+            safe_printf("(%d): No such process\n", pid);
+            return ;
+        }
+        jid = job->jid;
+    }else{
+        safe_printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        return ;
+    }
+
+    // 1. fg : change a stopped or running background job to a running in the foreground
+    if (!strcmp(argv[0], "fg")){
+//        if (job->state == FG){
+//            safe_printf("This is not a stopped or running background job");
+//            return ;
+//        }
+        //TODO: -pid로 해야하는지 결정해야 함.
+        if (kill(-pid, SIGCONT) < 0){
+            safe_printf("Sending SIGCONT signal has failed");
+        }
+        job->state = FG;
+        waitfg(pid);
+    // 2. bg: change a stopped backgroung job to a running background job.
+    }else{
+        if (job->state != ST){
+            safe_printf("This is not a stopped job");
+            return ;
+        }
+        //TODO: -pid로 해야하는지 결정해야 함.
+        if (kill(-pid, SIGCONT) < 0){
+            safe_printf("Sending SIGCONT signal has failed");
+        }
+        job->state = BG;
+        safe_printf("[%d] (%d) %s", jid, pid, job->cmdline);
+    }
+
 
     return;
 }
@@ -321,13 +358,14 @@ void do_bgfg(char **argv)
 /*
  * waitfg - Block until process pid is no longer the foreground process
  */
+//TODO: 왜 waitpid로 하면 안 되는지 알아내야 함.
 void waitfg(pid_t pid)
 {
-    struct job_t* jobp = getjobpid(jobs, pid);
-    if (!jobp) {
-        app_error("no job element exists");
+    struct job_t* job = getjobpid(jobs, pid);
+    if (!job) {
+        safe_printf("No job corresponding with pid[%d] exists", pid);
         return; }
-    while(jobp->state == FG){
+    while(job->state == FG){
         sleep(1);
     }
 }
@@ -354,20 +392,22 @@ void sigchld_handler(int sig)
     // not only terminated, but also stopped
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
         int jid = pid2jid(pid);
-
         // exited normally
         if (WIFEXITED(status)){
             deletejob(jobs, pid);
         // terminated by SIGINT
         }else if (WIFSIGNALED(status)){
-            deletejob(jobs, pid);
             safe_printf("Job [%d] (%d) terminated by signal %d\n",
                     jid, pid, WTERMSIG(status));
+            deletejob(jobs, pid);
         // stopped by SIGTSTP
         }else if (WIFSTOPPED(status)){
             safe_printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, WSTOPSIG(status));
             getjobpid(jobs, pid)->state=ST;
         }
+    }
+    if (errno == ECHILD){
+        return ;
     }
 }
 
@@ -378,16 +418,9 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig)
 {
-    int pid = fgpid(jobs);
+    pid_t pid = fgpid(jobs);
+    if (!pid) return ;
     kill(-pid, SIGINT);
-
-//    for (int i = 0; i < maxjid(jobs); i++){
-//        if (jobs[i].state==FG){
-//            safe_printf("Job [%d] (%d) terminated by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
-//            //FIXME: -pid로 해야하는지 고민해봐야 함. 06, 07p
-//            kill(-jobs[i].pid, SIGKILL);
-//        }
-//    }
 }
 
 /*
@@ -397,22 +430,9 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig)
 {
-    int pid = fgpid(jobs);
+    pid_t pid = fgpid(jobs);
+    if (!pid) return ;
     kill(-pid, SIGTSTP);
-
-//    for (int i = 0; i < MAXJOBS; i++){
-//        if (jobs[i].state==FG){
-//            kill(-jobs[i].pid, SIGTSTP);
-//            safe_printf("Job [%d] (%d) stopped by signal %d\n", jobs[i].jid, jobs[i].pid, sig);
-//            jobs[i].state=ST;
-//            //TODO:
-//            safe_printf("sig 보내기 전:\n");
-//            listjobs(jobs);
-//            //TODO:
-//            safe_printf("sig 보내기 후:\n");
-//            listjobs(jobs);
-//        }
-//    }
 }
 
 /*********************
