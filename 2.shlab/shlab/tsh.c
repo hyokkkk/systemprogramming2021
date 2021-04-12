@@ -172,19 +172,19 @@ int main(int argc, char **argv)
 
 void eval(char *cmdline)
 {
-    char* argv[MAXARGS];    // argv for execve()
+    char* argv[MAXARGS];
     int bg = parseline(cmdline, argv);
     pid_t pid;
 
     if (!argv[0]){ return ; }    // ignore empty lines
 
-    // should block signals before fork()
     sigset_t mask = {};
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGCHLD);
+    if (sigemptyset(&mask) < 0){ safe_printf("sigemptyset() failed\n"); _exit(1); }
+    if (sigaddset(&mask, SIGCHLD) < 0){ safe_printf("sigaddset() failed\n"); _exit(1); }
 
     if (!builtin_cmd(argv)){
-        sigprocmask(SIG_BLOCK, &mask, NULL);
+        // should block signals before fork()
+        if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
         if ((pid = fork()) == 0){
             // set pgid same as current pid.
             setpgid(0, 0);
@@ -195,9 +195,11 @@ void eval(char *cmdline)
                 printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
-        }
+        }else if (pid < 0){ safe_printf("fork() failed\n"); _exit(1); }
+
         addjob(jobs, pid, bg ? BG : FG, cmdline);
-        sigprocmask(SIG_UNBLOCK, &mask, NULL);
+        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
+
         if (!bg){
             waitfg(pid);
         }else{
@@ -271,10 +273,10 @@ int parseline(const char *cmdline, char **argv)
  * builtin_cmd - If the user has typed a built-in command then execute
  *    it immediately.
  */
+// jobs, quit, bg or fg
 int builtin_cmd(char **argv)
 {
-    // jobs, quit, bg or fg
-    if (!strcmp(argv[0], "quit")){      // 같으면 0나옴.
+    if (!strcmp(argv[0], "quit")){
         exit(0);
     }else if (!strcmp(argv[0], "jobs")){
         // list the running and stopped background jobs라고 돼있는데, ./tshref는 fg도 다 list하는데?
@@ -329,13 +331,8 @@ void do_bgfg(char **argv)
 
     // 1. fg : change a stopped or running background job to a running in the foreground
     if (!strcmp(argv[0], "fg")){
-//        if (job->state == FG){
-//            safe_printf("This is not a stopped or running background job");
-//            return ;
-//        }
-        //TODO: -pid로 해야하는지 결정해야 함.
         if (kill(-pid, SIGCONT) < 0){
-            safe_printf("Sending SIGCONT signal has failed");
+            safe_printf("Sending SIGCONT signal failed");
         }
         job->state = FG;
         waitfg(pid);
@@ -345,9 +342,8 @@ void do_bgfg(char **argv)
             safe_printf("This is not a stopped job");
             return ;
         }
-        //TODO: -pid로 해야하는지 결정해야 함.
         if (kill(-pid, SIGCONT) < 0){
-            safe_printf("Sending SIGCONT signal has failed");
+            safe_printf("Sending SIGCONT signal failed");
         }
         job->state = BG;
         safe_printf("[%d] (%d) %s", jid, pid, job->cmdline);
@@ -422,7 +418,10 @@ void sigint_handler(int sig)
 {
     pid_t pid = fgpid(jobs);
     if (!pid) return ;
-    kill(-pid, SIGINT);
+    if (kill(-pid, SIGINT) < 0){
+        safe_printf("Sending signal failed\n");
+        _exit(1);
+    }
 }
 
 /*
@@ -434,7 +433,10 @@ void sigtstp_handler(int sig)
 {
     pid_t pid = fgpid(jobs);
     if (!pid) return ;
-    kill(-pid, SIGTSTP);
+    if (kill(-pid, SIGTSTP) < 0){
+        safe_printf("Sending signal failed\n");
+        _exit(1);
+    }
 }
 
 /*********************

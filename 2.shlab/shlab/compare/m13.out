@@ -1,0 +1,199 @@
+./sdriver.pl -t ./trace/trace13.txt -s ./tsh -a "-p"
+#
+# trace13.txt - Restart every stopped process in process group
+#
+tsh> ./mysplit 4
+Job [1] (25196) stopped by signal 20
+tsh> jobs
+[1] (25196) Stopped ./mysplit 4 
+tsh> /bin/ps a
+  PID TTY      STAT   TIME COMMAND
+ 2898 pts/0    Ss    16:13 -zsh
+ 2903 pts/0    S      0:00 -zsh
+ 2923 pts/0    Sl     0:08 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+ 3317 pts/1    Ss+  273:01 -zsh
+ 3322 pts/1    S      0:00 -zsh
+ 3342 pts/1    Sl     0:17 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+10809 pts/3    Ss     1:39 -zsh
+10814 pts/3    S      0:00 -zsh
+10834 pts/3    Sl     0:01 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+10916 pts/3    S      0:00 ./tsh -p
+10918 pts/3    T      0:00 ./myspin 4
+10977 pts/3    S      0:00 ./tsh -p
+10979 pts/3    T      0:00 ./myspin 4
+11044 pts/3    S      0:00 ./tsh -p
+11046 pts/3    T      0:00 ./myspin 4
+11106 pts/3    S      0:00 ./tsh -p
+11108 pts/3    T      0:00 ./myspin 4
+11175 pts/3    S      0:00 ./tsh -p
+11177 pts/3    T      0:00 ./myspin 4
+11244 pts/3    S      0:00 ./tsh -p
+11246 pts/3    T      0:00 ./myspin 4
+11404 pts/3    S      0:00 ./tsh -p
+11406 pts/3    T      0:00 ./myspin 4
+11485 pts/3    S      0:00 ./tsh -p
+11487 pts/3    T      0:00 ./myspin 4
+11562 pts/3    S      0:00 ./tsh -p
+11564 pts/3    T      0:00 ./myspin 4
+11621 pts/3    S      0:00 ./tsh -p
+11623 pts/3    T      0:00 ./myspin 4
+11767 pts/3    S      0:00 ./tsh -p
+11769 pts/3    T      0:00 ./myspin 4
+11836 pts/3    S      0:00 ./tsh -p
+11838 pts/3    T      0:00 ./myspin 4
+11916 pts/3    S      0:00 ./tsh -p
+11918 pts/3    T      0:00 ./myspin 4
+12107 pts/3    S      0:00 ./tsh -p
+12109 pts/3    T      0:00 ./myspin 4
+12166 pts/3    S      0:00 ./tsh -p
+12168 pts/3    T      0:00 ./myspin 4
+12229 pts/3    S      0:00 ./tsh -p
+12231 pts/3    T      0:00 ./myspin 4
+12301 pts/3    S      0:00 ./tsh -p
+12303 pts/3    T      0:00 ./myspin 4
+12362 pts/3    S      0:00 ./tsh -p
+12364 pts/3    T      0:00 ./myspin 4
+12485 pts/3    S      0:00 ./tsh -p
+12487 pts/3    T      0:00 ./myspin 4
+12559 pts/3    S      0:00 ./tsh -p
+12561 pts/3    T      0:00 ./myspin 4
+12626 pts/3    S      0:00 ./tsh -p
+12628 pts/3    T      0:00 ./myspin 4
+12687 pts/3    S      0:00 ./tsh -p
+12689 pts/3    T      0:00 ./myspin 4
+12749 pts/3    S      0:00 ./tsh -p
+12751 pts/3    T      0:00 ./myspin 4
+12905 pts/3    S      0:00 ./tsh -p
+12907 pts/3    T      0:00 ./myspin 4
+12991 pts/3    S      0:00 ./tsh -p
+12993 pts/3    T      0:00 ./myspin 4
+13067 pts/3    S      0:00 ./tsh -p
+13069 pts/3    T      0:00 ./myspin 4
+13166 pts/3    S      0:00 ./tsh -p
+13168 pts/3    T      0:00 ./myspin 4
+13509 pts/3    S      0:00 ./tsh -p
+13511 pts/3    T      0:00 ./myspin 4
+13602 pts/3    S      0:00 ./tsh -p
+13604 pts/3    T      0:00 ./myspin 4
+13958 pts/3    S      0:00 ./tsh -p
+13960 pts/3    T      0:00 ./myspin 4
+14025 pts/3    S      0:00 ./tsh -p
+14027 pts/3    T      0:00 ./myspin 4
+15245 pts/3    S      0:00 ./tsh -p
+15247 pts/3    T      0:00 ./myspin 4
+15303 pts/3    S      0:00 ./tsh -p
+15305 pts/3    T      0:00 ./myspin 4
+17565 pts/3    S      0:00 ./tsh -p
+17569 pts/3    T      0:00 ./myspin 4
+17700 pts/3    S      0:00 ./tsh -p
+17704 pts/3    T      0:00 ./myspin 4
+17858 pts/2    Ss+   22:26 -zsh
+17863 pts/2    S      0:00 -zsh
+17879 pts/3    S      0:00 ./tsh -p
+17883 pts/2    Sl     0:02 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+17900 pts/3    T      0:00 ./myspin 4
+18369 pts/3    S      0:00 ./tsh -p
+18373 pts/3    T      0:00 ./myspin 4
+23695 pts/0    S+     0:33 vim tsh.c
+25191 pts/3    S+     0:00 make test13
+25192 pts/3    S+     0:00 /bin/sh -c ./sdriver.pl -t ./trace/trace13.txt -s ./tsh -a "-p"
+25193 pts/3    S+     0:00 /usr/bin/perl ./sdriver.pl -t ./trace/trace13.txt -s ./tsh -a -p
+25194 pts/3    S+     0:00 ./tsh -p
+25196 pts/3    T      0:00 ./mysplit 4
+25197 pts/3    T      0:00 ./mysplit 4
+25200 pts/3    R      0:00 /bin/ps a
+tsh> fg %1
+tsh> /bin/ps a
+  PID TTY      STAT   TIME COMMAND
+ 2898 pts/0    Ss    16:13 -zsh
+ 2903 pts/0    S      0:00 -zsh
+ 2923 pts/0    Sl     0:08 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+ 3317 pts/1    Ss+  273:02 -zsh
+ 3322 pts/1    S      0:00 -zsh
+ 3342 pts/1    Sl     0:17 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+10809 pts/3    Ss     1:39 -zsh
+10814 pts/3    S      0:00 -zsh
+10834 pts/3    Sl     0:01 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+10916 pts/3    S      0:00 ./tsh -p
+10918 pts/3    T      0:00 ./myspin 4
+10977 pts/3    S      0:00 ./tsh -p
+10979 pts/3    T      0:00 ./myspin 4
+11044 pts/3    S      0:00 ./tsh -p
+11046 pts/3    T      0:00 ./myspin 4
+11106 pts/3    S      0:00 ./tsh -p
+11108 pts/3    T      0:00 ./myspin 4
+11175 pts/3    S      0:00 ./tsh -p
+11177 pts/3    T      0:00 ./myspin 4
+11244 pts/3    S      0:00 ./tsh -p
+11246 pts/3    T      0:00 ./myspin 4
+11404 pts/3    S      0:00 ./tsh -p
+11406 pts/3    T      0:00 ./myspin 4
+11485 pts/3    S      0:00 ./tsh -p
+11487 pts/3    T      0:00 ./myspin 4
+11562 pts/3    S      0:00 ./tsh -p
+11564 pts/3    T      0:00 ./myspin 4
+11621 pts/3    S      0:00 ./tsh -p
+11623 pts/3    T      0:00 ./myspin 4
+11767 pts/3    S      0:00 ./tsh -p
+11769 pts/3    T      0:00 ./myspin 4
+11836 pts/3    S      0:00 ./tsh -p
+11838 pts/3    T      0:00 ./myspin 4
+11916 pts/3    S      0:00 ./tsh -p
+11918 pts/3    T      0:00 ./myspin 4
+12107 pts/3    S      0:00 ./tsh -p
+12109 pts/3    T      0:00 ./myspin 4
+12166 pts/3    S      0:00 ./tsh -p
+12168 pts/3    T      0:00 ./myspin 4
+12229 pts/3    S      0:00 ./tsh -p
+12231 pts/3    T      0:00 ./myspin 4
+12301 pts/3    S      0:00 ./tsh -p
+12303 pts/3    T      0:00 ./myspin 4
+12362 pts/3    S      0:00 ./tsh -p
+12364 pts/3    T      0:00 ./myspin 4
+12485 pts/3    S      0:00 ./tsh -p
+12487 pts/3    T      0:00 ./myspin 4
+12559 pts/3    S      0:00 ./tsh -p
+12561 pts/3    T      0:00 ./myspin 4
+12626 pts/3    S      0:00 ./tsh -p
+12628 pts/3    T      0:00 ./myspin 4
+12687 pts/3    S      0:00 ./tsh -p
+12689 pts/3    T      0:00 ./myspin 4
+12749 pts/3    S      0:00 ./tsh -p
+12751 pts/3    T      0:00 ./myspin 4
+12905 pts/3    S      0:00 ./tsh -p
+12907 pts/3    T      0:00 ./myspin 4
+12991 pts/3    S      0:00 ./tsh -p
+12993 pts/3    T      0:00 ./myspin 4
+13067 pts/3    S      0:00 ./tsh -p
+13069 pts/3    T      0:00 ./myspin 4
+13166 pts/3    S      0:00 ./tsh -p
+13168 pts/3    T      0:00 ./myspin 4
+13509 pts/3    S      0:00 ./tsh -p
+13511 pts/3    T      0:00 ./myspin 4
+13602 pts/3    S      0:00 ./tsh -p
+13604 pts/3    T      0:00 ./myspin 4
+13958 pts/3    S      0:00 ./tsh -p
+13960 pts/3    T      0:00 ./myspin 4
+14025 pts/3    S      0:00 ./tsh -p
+14027 pts/3    T      0:00 ./myspin 4
+15245 pts/3    S      0:00 ./tsh -p
+15247 pts/3    T      0:00 ./myspin 4
+15303 pts/3    S      0:00 ./tsh -p
+15305 pts/3    T      0:00 ./myspin 4
+17565 pts/3    S      0:00 ./tsh -p
+17569 pts/3    T      0:00 ./myspin 4
+17700 pts/3    S      0:00 ./tsh -p
+17704 pts/3    T      0:00 ./myspin 4
+17858 pts/2    Ss+   22:26 -zsh
+17863 pts/2    S      0:00 -zsh
+17879 pts/3    S      0:00 ./tsh -p
+17883 pts/2    Sl     0:02 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+17900 pts/3    T      0:00 ./myspin 4
+18369 pts/3    S      0:00 ./tsh -p
+18373 pts/3    T      0:00 ./myspin 4
+23695 pts/0    S+     0:33 vim tsh.c
+25191 pts/3    S+     0:00 make test13
+25192 pts/3    S+     0:00 /bin/sh -c ./sdriver.pl -t ./trace/trace13.txt -s ./tsh -a "-p"
+25193 pts/3    S+     0:00 /usr/bin/perl ./sdriver.pl -t ./trace/trace13.txt -s ./tsh -a -p
+25194 pts/3    S+     0:00 ./tsh -p
+25203 pts/3    R      0:00 /bin/ps a
