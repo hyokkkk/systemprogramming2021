@@ -185,24 +185,30 @@ void eval(char *cmdline)
     if (!builtin_cmd(argv)){
         // should block signals before fork()
         if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
+
+        // child process
         if ((pid = fork()) == 0){
-            // set pgid same as current pid.
+            // set pgid same as current pid before execve()
             setpgid(0, 0);
             // should unblock signals before execve()
             sigprocmask(SIG_UNBLOCK, &mask, NULL);
             if (execve(argv[0], argv, environ) < 0){
-            // execve는 error일 때에만 ret하니까 여기서 멈춤.
+                // only executed when execve() failed.
                 printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
         }else if (pid < 0){ safe_printf("fork() failed\n"); _exit(1); }
 
+        // parent process
         addjob(jobs, pid, bg ? BG : FG, cmdline);
-        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
 
+        // unblock after addjob
+        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
         if (!bg){
+            // wait until foreground job finishes
             waitfg(pid);
         }else{
+            // for background job
             printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);
         }
     }
@@ -273,23 +279,18 @@ int parseline(const char *cmdline, char **argv)
  * builtin_cmd - If the user has typed a built-in command then execute
  *    it immediately.
  */
-// jobs, quit, bg or fg
 int builtin_cmd(char **argv)
 {
+    // jobs, quit, bg/fg
     if (!strcmp(argv[0], "quit")){
         exit(0);
     }else if (!strcmp(argv[0], "jobs")){
-        // list the running and stopped background jobs라고 돼있는데, ./tshref는 fg도 다 list하는데?
         listjobs(jobs);
         return 1;
-    }else if (!strcmp(argv[0], "fg")){
-        do_bgfg(argv);
-        return 1;
-    }else if (!strcmp(argv[0], "bg")){
+    }else if (!strcmp(argv[0], "fg") || !strcmp(argv[0], "bg")){
         do_bgfg(argv);
         return 1;
     }
-
     return 0;     /* not a builtin command */
 }
 
@@ -298,6 +299,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv)
 {
+    // fg/bg 다음에 arg 없는 경우
     if (!argv[1]){
         safe_printf("%s command requires PID or %%jobid argument\n", argv[0]);
         return ;
@@ -306,7 +308,8 @@ void do_bgfg(char **argv)
     pid_t pid;
     struct job_t* job;
 
-    // 1. jid 인 경우
+    /* check the input */
+    // 1. jid 인 경우: %로 시작함.
     if (argv[1][0]=='%'){
         jid = atoi(&argv[1][1]);
         job = getjobjid(jobs, jid);
@@ -314,8 +317,8 @@ void do_bgfg(char **argv)
             safe_printf("%%%d: No such job\n", jid);
             return ;
         }
-        pid = job->pid;
-    // 2. pid인 경우
+        pid = job->pid; // No such job 판별하는 if문 위에 쓰면 job이 없는 경우 error occurs.
+    // 2. pid인 경우: 숫자로 시작함.
     }else if (isdigit(argv[1][0])){
         pid = atoi(argv[1]);
         job = getjobpid(jobs, pid);
@@ -323,12 +326,14 @@ void do_bgfg(char **argv)
             safe_printf("(%d): No such process\n", pid);
             return ;
         }
-        jid = job->jid;
+        jid = job->jid; // No such process if문 위에 쓰면 job이 없는 경우 error occurs.
+    // 3. %도 아니고 숫자도 아닌 경우.
     }else{
         safe_printf("%s: argument must be a PID or %%jobid\n", argv[0]);
         return ;
     }
 
+    /* execute fg/bg command*/
     // 1. fg : change a stopped or running background job to a running in the foreground
     if (!strcmp(argv[0], "fg")){
         if (kill(-pid, SIGCONT) < 0){
@@ -348,21 +353,20 @@ void do_bgfg(char **argv)
         job->state = BG;
         safe_printf("[%d] (%d) %s", jid, pid, job->cmdline);
     }
-
-
     return;
 }
 
 /*
  * waitfg - Block until process pid is no longer the foreground process
  */
-//TODO: 왜 waitpid로 하면 안 되는지 알아내야 함.
 void waitfg(pid_t pid)
 {
     struct job_t* job = getjobpid(jobs, pid);
     if (!job) {
         safe_printf("No job corresponding with pid[%d] exists", pid);
-        return; }
+        return;
+    }
+    // wait and do nothing until foreground job finishes.
     while(job->state == FG){
         sleep(1);
     }
@@ -379,9 +383,6 @@ void waitfg(pid_t pid)
  *     available zombie children, but doesn't wait for any other
  *     currently running children to terminate.
  */
-//TODO: sigint, sigtstp불리면 sigchld 안 불리는 줄 알았음.
-//한 경우에 하나씩만 오는 줄 알았다.. 와우...
-// sigtstp이 fg로 가기 전에 fg가 종료돼버린다.
 void sigchld_handler(int sig)
 {
     int status;
@@ -404,6 +405,7 @@ void sigchld_handler(int sig)
             getjobpid(jobs, pid)->state=ST;
         }
     }
+    // no child process
     if (errno == ECHILD){
         return ;
     }
