@@ -1,5 +1,0 @@
-./sdriver.pl -t trace03.txt -s ./tshref -a "-p"
-#
-# trace03.txt - Run a foreground job.
-#
-tsh> quit
