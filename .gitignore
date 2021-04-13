@@ -1,3 +1,5 @@
 *.Identifier
 *.swp
 *.swo
+*.out
+*.exe
