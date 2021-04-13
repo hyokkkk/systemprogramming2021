@@ -88,9 +88,6 @@ void app_error(char *msg);
 typedef void handler_t(int);
 handler_t *Signal(int signum, handler_t *handler);
 
-// self-made function prototypes
-void safe_printf(const char* format, ...);
-
 /*
  * main - The shell's main routine
  */
@@ -179,12 +176,12 @@ void eval(char *cmdline)
     if (!argv[0]){ return ; }    // ignore empty lines
 
     sigset_t mask = {};
-    if (sigemptyset(&mask) < 0){ safe_printf("sigemptyset() failed\n"); _exit(1); }
-    if (sigaddset(&mask, SIGCHLD) < 0){ safe_printf("sigaddset() failed\n"); _exit(1); }
+    if (sigemptyset(&mask) < 0){ unix_error("sigemptyset() error"); }
+    if (sigaddset(&mask, SIGCHLD) < 0){ unix_error("sigaddset() error"); }
 
     if (!builtin_cmd(argv)){
         // should block signals before fork()
-        if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
+        if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0){ unix_error("sigprocmask() error"); }
 
         // child process
         if ((pid = fork()) == 0){
@@ -197,13 +194,13 @@ void eval(char *cmdline)
                 printf("%s: Command not found\n", argv[0]);
                 exit(0);
             }
-        }else if (pid < 0){ safe_printf("fork() failed\n"); _exit(1); }
+        }else if (pid < 0){ unix_error("fork() error"); }
 
         // parent process
         addjob(jobs, pid, bg ? BG : FG, cmdline);
 
         // unblock after addjob
-        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0){ safe_printf("sigprocmask() failed\n"); _exit(1); }
+        if (sigprocmask(SIG_UNBLOCK, &mask, NULL) < 0){ unix_error("sigprocmask() error"); }
         if (!bg){
             // wait until foreground job finishes
             waitfg(pid);
@@ -301,7 +298,7 @@ void do_bgfg(char **argv)
 {
     // fg/bg 다음에 arg 없는 경우
     if (!argv[1]){
-        safe_printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
         return ;
     }
     int jid;
@@ -314,7 +311,7 @@ void do_bgfg(char **argv)
         jid = atoi(&argv[1][1]);
         job = getjobjid(jobs, jid);
         if (!job){
-            safe_printf("%%%d: No such job\n", jid);
+            printf("%%%d: No such job\n", jid);
             return ;
         }
         pid = job->pid; // No such job 판별하는 if문 위에 쓰면 job이 없는 경우 error occurs.
@@ -323,35 +320,27 @@ void do_bgfg(char **argv)
         pid = atoi(argv[1]);
         job = getjobpid(jobs, pid);
         if (!job){
-            safe_printf("(%d): No such process\n", pid);
+            printf("(%d): No such process\n", pid);
             return ;
         }
         jid = job->jid; // No such process if문 위에 쓰면 job이 없는 경우 error occurs.
     // 3. %도 아니고 숫자도 아닌 경우.
     }else{
-        safe_printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        printf("%s: argument must be a PID or %%jobid\n", argv[0]);
         return ;
     }
 
     /* execute fg/bg command*/
     // 1. fg : change a stopped or running background job to a running in the foreground
     if (!strcmp(argv[0], "fg")){
-        if (kill(-pid, SIGCONT) < 0){
-            safe_printf("Sending SIGCONT signal failed");
-        }
+        if (kill(-pid, SIGCONT) < 0){ unix_error("Sending SIGCONT failed at FG"); }
         job->state = FG;
-        waitfg(pid);
+        waitfg(pid);    // wait until foreground job finishes
     // 2. bg: change a stopped backgroung job to a running background job.
     }else{
-        if (job->state != ST){
-            safe_printf("This is not a stopped job");
-            return ;
-        }
-        if (kill(-pid, SIGCONT) < 0){
-            safe_printf("Sending SIGCONT signal failed");
-        }
+        if (kill(-pid, SIGCONT) < 0){ unix_error("Sending SIGCONT failed at BG"); }
         job->state = BG;
-        safe_printf("[%d] (%d) %s", jid, pid, job->cmdline);
+        printf("[%d] (%d) %s", jid, pid, job->cmdline);
     }
     return;
 }
@@ -363,7 +352,7 @@ void waitfg(pid_t pid)
 {
     struct job_t* job = getjobpid(jobs, pid);
     if (!job) {
-        safe_printf("No job corresponding with pid[%d] exists", pid);
+        printf("No job corresponding with pid[%d] exists", pid);
         return;
     }
     // wait and do nothing until foreground job finishes.
@@ -396,12 +385,12 @@ void sigchld_handler(int sig)
             deletejob(jobs, pid);
         // terminated by SIGINT
         }else if (WIFSIGNALED(status)){
-            safe_printf("Job [%d] (%d) terminated by signal %d\n",
+            printf("Job [%d] (%d) terminated by signal %d\n",
                     jid, pid, WTERMSIG(status));
             deletejob(jobs, pid);
         // stopped by SIGTSTP
         }else if (WIFSTOPPED(status)){
-            safe_printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, WSTOPSIG(status));
+            printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, WSTOPSIG(status));
             getjobpid(jobs, pid)->state=ST;
         }
     }
@@ -421,8 +410,7 @@ void sigint_handler(int sig)
     pid_t pid = fgpid(jobs);
     if (!pid) return ;
     if (kill(-pid, SIGINT) < 0){
-        safe_printf("Sending signal failed\n");
-        _exit(1);
+        unix_error("Sending SIGINT failed");
     }
 }
 
@@ -436,8 +424,7 @@ void sigtstp_handler(int sig)
     pid_t pid = fgpid(jobs);
     if (!pid) return ;
     if (kill(-pid, SIGTSTP) < 0){
-        safe_printf("Sending signal failed\n");
-        _exit(1);
+        unix_error("Sending SIGTSTP failed");
     }
 }
 
@@ -674,18 +661,4 @@ void sigquit_handler(int sig)
     printf("Terminating after receipt of SIGQUIT signal\n");
     exit(1);
 }
-
-
-
-// self-made functions
-void safe_printf(const char* format, ...){
-    char buf[MAXLINE];
-    va_list args;
-
-    va_start(args, format);
-    vsnprintf(buf, sizeof(buf), format, args);
-    va_end(args);
-    write(1, buf, strlen(buf));
-}
-
 
