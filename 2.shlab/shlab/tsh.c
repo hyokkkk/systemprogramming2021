@@ -376,7 +376,6 @@ void sigchld_handler(int sig)
 {
     int status;
     pid_t pid;
-    // 이미 종료되어 waitset에 들어와있는 애들만 reap한다.
     // not only terminated, but also stopped
     while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
         int jid = pid2jid(pid);
