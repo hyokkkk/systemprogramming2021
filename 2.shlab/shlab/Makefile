@@ -14,6 +14,42 @@ all: $(FILES)
 # Regression tests
 ##################
 
+testall:
+	$(DRIVER) -t ./trace/trace01.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace02.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace03.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace04.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace05.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace06.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace07.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace08.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace09.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace10.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace11.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace12.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace13.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace14.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace15.txt -s $(TSH) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace16.txt -s $(TSH) -a $(TSHARGS)
+
+rtestall:
+	$(DRIVER) -t ./trace/trace01.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace02.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace03.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace04.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace05.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace06.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace07.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace08.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace09.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace10.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace11.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace12.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace13.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace14.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace15.txt -s $(TSHREF) -a $(TSHARGS)
+	$(DRIVER) -t ./trace/trace16.txt -s $(TSHREF) -a $(TSHARGS)
+
 # Run tests using the student's shell program
 test01:
 	$(DRIVER) -t ./trace/trace01.txt -s $(TSH) -a $(TSHARGS)

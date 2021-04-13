@@ -1,0 +1,239 @@
+./sdriver.pl -t ./trace/trace01.txt -s ./tshref -a "-p"
+#
+# trace01.txt - Properly terminate on EOF.
+#
+./sdriver.pl -t ./trace/trace02.txt -s ./tshref -a "-p"
+#
+# trace02.txt - Process builtin quit command.
+#
+./sdriver.pl -t ./trace/trace03.txt -s ./tshref -a "-p"
+#
+# trace03.txt - Run a foreground job.
+#
+tsh> quit
+./sdriver.pl -t ./trace/trace04.txt -s ./tshref -a "-p"
+#
+# trace04.txt - Run a background job.
+#
+tsh> ./myspin 1 &
+[1] (3407) ./myspin 1 &
+./sdriver.pl -t ./trace/trace05.txt -s ./tshref -a "-p"
+#
+# trace05.txt - Process jobs builtin command.
+#
+tsh> ./myspin 2 &
+[1] (3412) ./myspin 2 &
+tsh> ./myspin 3 &
+[2] (3414) ./myspin 3 &
+tsh> jobs
+[1] (3412) Running ./myspin 2 &
+[2] (3414) Running ./myspin 3 &
+./sdriver.pl -t ./trace/trace06.txt -s ./tshref -a "-p"
+#
+# trace06.txt - Forward SIGINT to foreground job.
+#
+tsh> ./myspin 4
+Job [1] (3420) terminated by signal 2
+./sdriver.pl -t ./trace/trace07.txt -s ./tshref -a "-p"
+#
+# trace07.txt - Forward SIGINT only to foreground job.
+#
+tsh> ./myspin 4 &
+[1] (3425) ./myspin 4 &
+tsh> ./myspin 5
+Job [2] (3427) terminated by signal 2
+tsh> jobs
+[1] (3425) Running ./myspin 4 &
+./sdriver.pl -t ./trace/trace08.txt -s ./tshref -a "-p"
+#
+# trace08.txt - Forward SIGTSTP only to foreground job.
+#
+tsh> ./myspin 4 &
+[1] (3433) ./myspin 4 &
+tsh> ./myspin 5
+Job [2] (3435) stopped by signal 20
+tsh> jobs
+[1] (3433) Running ./myspin 4 &
+[2] (3435) Stopped ./myspin 5 
+./sdriver.pl -t ./trace/trace09.txt -s ./tshref -a "-p"
+#
+# trace09.txt - Process bg builtin command
+#
+tsh> ./myspin 4 &
+[1] (3441) ./myspin 4 &
+tsh> fg %1
+Job [1] (3441) stopped by signal 20
+tsh> jobs
+[1] (3441) Stopped ./myspin 4 &
+tsh> ./myspin 5
+tsh> jobs
+[1] (3441) Stopped ./myspin 4 &
+tsh> bg %2
+%2: No such job
+tsh> jobs
+[1] (3441) Stopped ./myspin 4 &
+./sdriver.pl -t ./trace/trace10.txt -s ./tshref -a "-p"
+#
+# trace10.txt - Process fg builtin command. 
+#
+tsh> ./myspin 4 &
+[1] (3454) ./myspin 4 &
+tsh> fg %1
+Job [1] (3454) stopped by signal 20
+tsh> jobs
+[1] (3454) Stopped ./myspin 4 &
+tsh> fg %1
+tsh> jobs
+./sdriver.pl -t ./trace/trace11.txt -s ./tshref -a "-p"
+#
+# trace11.txt - Forward SIGINT to every process in foreground process group
+#
+tsh> ./mysplit 4
+Job [1] (3463) terminated by signal 2
+tsh> /bin/ps a
+  PID TTY      STAT   TIME COMMAND
+ 3392 pts/0    S+     0:00 make rtestall
+ 3459 pts/0    S+     0:00 /bin/sh -c ./sdriver.pl -t ./trace/trace11.txt -s ./tshref -a "-p"
+ 3460 pts/0    S+     0:00 /usr/bin/perl ./sdriver.pl -t ./trace/trace11.txt -s ./tshref -a -p
+ 3461 pts/0    S+     0:00 ./tshref -p
+ 3466 pts/0    R      0:00 /bin/ps a
+29592 pts/1    Ss     0:03 -zsh
+29597 pts/1    S      0:00 -zsh
+29617 pts/1    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+29948 pts/1    S+     0:42 vim tsh.c
+30345 pts/0    Ss     3:04 -zsh
+30350 pts/0    S      0:00 -zsh
+30370 pts/0    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+./sdriver.pl -t ./trace/trace12.txt -s ./tshref -a "-p"
+#
+# trace12.txt - Forward SIGTSTP to every process in foreground process group
+#
+tsh> ./mysplit 4
+Job [1] (3471) stopped by signal 20
+tsh> jobs
+[1] (3471) Stopped ./mysplit 4 
+tsh> /bin/ps a
+  PID TTY      STAT   TIME COMMAND
+ 3392 pts/0    S+     0:00 make rtestall
+ 3467 pts/0    S+     0:00 /bin/sh -c ./sdriver.pl -t ./trace/trace12.txt -s ./tshref -a "-p"
+ 3468 pts/0    S+     0:00 /usr/bin/perl ./sdriver.pl -t ./trace/trace12.txt -s ./tshref -a -p
+ 3469 pts/0    S+     0:00 ./tshref -p
+ 3471 pts/0    T      0:00 ./mysplit 4
+ 3472 pts/0    T      0:00 ./mysplit 4
+ 3475 pts/0    R      0:00 /bin/ps a
+29592 pts/1    Ss     0:03 -zsh
+29597 pts/1    S      0:00 -zsh
+29617 pts/1    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+29948 pts/1    S+     0:42 vim tsh.c
+30345 pts/0    Ss     3:04 -zsh
+30350 pts/0    S      0:00 -zsh
+30370 pts/0    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+./sdriver.pl -t ./trace/trace13.txt -s ./tshref -a "-p"
+#
+# trace13.txt - Restart every stopped process in process group
+#
+tsh> ./mysplit 4
+Job [1] (3480) stopped by signal 20
+tsh> jobs
+[1] (3480) Stopped ./mysplit 4 
+tsh> /bin/ps a
+  PID TTY      STAT   TIME COMMAND
+ 3392 pts/0    S+     0:00 make rtestall
+ 3476 pts/0    S+     0:00 /bin/sh -c ./sdriver.pl -t ./trace/trace13.txt -s ./tshref -a "-p"
+ 3477 pts/0    S+     0:00 /usr/bin/perl ./sdriver.pl -t ./trace/trace13.txt -s ./tshref -a -p
+ 3478 pts/0    S+     0:00 ./tshref -p
+ 3480 pts/0    T      0:00 ./mysplit 4
+ 3481 pts/0    T      0:00 ./mysplit 4
+ 3484 pts/0    R      0:00 /bin/ps a
+29592 pts/1    Ss     0:03 -zsh
+29597 pts/1    S      0:00 -zsh
+29617 pts/1    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+29948 pts/1    S+     0:42 vim tsh.c
+30345 pts/0    Ss     3:04 -zsh
+30350 pts/0    S      0:00 -zsh
+30370 pts/0    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+tsh> fg %1
+tsh> /bin/ps a
+  PID TTY      STAT   TIME COMMAND
+ 3392 pts/0    S+     0:00 make rtestall
+ 3476 pts/0    S+     0:00 /bin/sh -c ./sdriver.pl -t ./trace/trace13.txt -s ./tshref -a "-p"
+ 3477 pts/0    S+     0:00 /usr/bin/perl ./sdriver.pl -t ./trace/trace13.txt -s ./tshref -a -p
+ 3478 pts/0    S+     0:00 ./tshref -p
+ 3487 pts/0    R      0:00 /bin/ps a
+29592 pts/1    Ss     0:03 -zsh
+29597 pts/1    S      0:00 -zsh
+29617 pts/1    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+29948 pts/1    S+     0:42 vim tsh.c
+30345 pts/0    Ss     3:04 -zsh
+30350 pts/0    S      0:00 -zsh
+30370 pts/0    Sl     0:00 /home/hyokta_linux/.cache/gitstatus/gitstatusd-linux-x86_64 -G v1.0.0 -s 1 -u 1 -d 1 -c 1 -m -1 -v FATAL -t 16
+./sdriver.pl -t ./trace/trace14.txt -s ./tshref -a "-p"
+#
+# trace14.txt - Simple error handling
+#
+tsh> ./bogus
+./bogus: Command not found
+tsh> ./myspin 4 &
+[1] (3494) ./myspin 4 &
+tsh> fg
+fg command requires PID or %jobid argument
+tsh> bg
+bg command requires PID or %jobid argument
+tsh> fg a
+fg: argument must be a PID or %jobid
+tsh> bg a
+bg: argument must be a PID or %jobid
+tsh> fg 9999999
+(9999999): No such process
+tsh> bg 9999999
+(9999999): No such process
+tsh> fg %2
+%2: No such job
+tsh> fg %1
+Job [1] (3494) stopped by signal 20
+tsh> bg %2
+%2: No such job
+tsh> bg %1
+[1] (3494) ./myspin 4 &
+tsh> jobs
+[1] (3494) Running ./myspin 4 &
+./sdriver.pl -t ./trace/trace15.txt -s ./tshref -a "-p"
+#
+# trace15.txt - Putting it all together
+#
+tsh> ./bogus
+./bogus: Command not found
+tsh> ./myspin 10
+Job [1] (3512) terminated by signal 2
+tsh> ./myspin 3 &
+[1] (3514) ./myspin 3 &
+tsh> ./myspin 4 &
+[2] (3516) ./myspin 4 &
+tsh> jobs
+[1] (3514) Running ./myspin 3 &
+[2] (3516) Running ./myspin 4 &
+tsh> fg %1
+Job [1] (3514) stopped by signal 20
+tsh> jobs
+[1] (3514) Stopped ./myspin 3 &
+[2] (3516) Running ./myspin 4 &
+tsh> bg %3
+%3: No such job
+tsh> bg %1
+[1] (3514) ./myspin 3 &
+tsh> jobs
+[1] (3514) Running ./myspin 3 &
+[2] (3516) Running ./myspin 4 &
+tsh> fg %1
+tsh> quit
+./sdriver.pl -t ./trace/trace16.txt -s ./tshref -a "-p"
+#
+# trace16.txt - Tests whether the shell can handle SIGTSTP and SIGINT
+#     signals that come from other processes instead of the terminal.
+#
+tsh> ./mystop 2
+Job [1] (3529) stopped by signal 20
+tsh> jobs
+[1] (3529) Stopped ./mystop 2
+tsh> ./myint 2
+Job [2] (3532) terminated by signal 2
