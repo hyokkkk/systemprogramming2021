@@ -53,9 +53,9 @@
 #define SIZE_T_SIZE     (ALIGN(sizeof(size_t)))
 
 
+static void place(void* bp, size_t size);
 static void* heap_listp = 0;
 static void* extend_heap(size_t wordscnt);
-static void place(void* bp, size_t size);
 static void* coalescse(void* bp);
 static void* find_fit(size_t size);
 
@@ -64,12 +64,14 @@ static void* find_fit(size_t size);
  */
 int mm_init(void)
 {
+    printf("실험1\n");
     /* Create the initial empty heap */
     if ((heap_listp = mem_sbrk(4*WSIZE)) == (void*)-1){
         return -1;
     }
-    //                    v--- heap_listp
-    //---------------------------------------------
+    printf("실험2\n");
+    //                    r--- heap_listp
+    //--------------------V------------------------
     // unused | prolH 8/1 | prolF 8/1 | epilH 0/1 |
     //---------------------------------------------
     PUT(heap_listp, 0);
@@ -78,6 +80,7 @@ int mm_init(void)
     PUT(heap_listp + (3*WSIZE), PACK(0, 1));     // epilogue header
     heap_listp += (2*WSIZE);
 
+    printf("실험3\n");
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
     if (extend_heap(CHUNKSIZE/WSIZE) == NULL) {return -1;}
 
@@ -94,6 +97,7 @@ void *mm_malloc(size_t size)
     size_t extendsize;
     char* bp;
 
+    printf("실험4\n");
     /* Ignore squrious requests */
     if (size == 0){ return NULL; }
 
@@ -101,18 +105,23 @@ void *mm_malloc(size_t size)
     // why DSIZE? : header(4byte) + footer(4byte)
     adjsize = ALIGN(size + DSIZE);
 
+    printf("실험5\n");
     /* search the free list for a fit */
     if ((bp = find_fit(adjsize)) != NULL) {
         place(bp, adjsize);
         return bp;
     }
 
+    printf("실험6\n");
     /* No fit found. get more memory and place the block */
     extendsize = MAX(adjsize, CHUNKSIZE);
     if ((bp = extend_heap(extendsize/WSIZE)) == NULL){
+    printf("실험7\n");
         return NULL;
     }
+    printf("실험8\n");
     place(bp, adjsize);
+    printf("실험9\n");
     return bp;
 //    int newsize = ALIGN(size + SIZE_T_SIZE);
 //    void *p = mem_sbrk(newsize);
@@ -184,15 +193,22 @@ static void* extend_heap(size_t wordscnt){
     char* bp;
     size_t size;
 
+    printf("실험10\n");
     /* Allocate an even number of words to maintain alignment */
     size = (wordscnt % 2) ? (wordscnt+1) * WSIZE : wordscnt * WSIZE;
-    if ((long)(bp = mem_sbrk(size)) == -1){ return NULL; }
+    if ((long)(bp = mem_sbrk(size)) == -1){ 
+    printf("실험11\n");
+        return NULL; }
 
+    printf("실험12\n");
     /* Initialize free block header/foter and the epilogue header */
     PUT(HDRP(bp), PACK(size, 0));           // free blk header
+    printf("실험12-1\n");
     PUT(FTRP(bp), PACK(size, 0));           // free blk footer
+    printf("실험12-2\n");
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));   // new epilog header
 
+    printf("실험13\n");
     /* Coalesce if the previous block was free */
     return coalescse(bp);
 }
@@ -201,24 +217,31 @@ static void* coalescse(void* bp){
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(FTRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
+    printf("실험14\n");
 
-    if (prev_alloc && next_alloc) { return bp; }
+    if (prev_alloc && next_alloc) { 
+    printf("실험15\n");
+        return bp; }
     else if (prev_alloc && !next_alloc){
+    printf("실험16\n");
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
     }else if (!prev_alloc && next_alloc){
+    printf("실험17\n");
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }else {
+    printf("실험18\n");
         size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
             GET_SIZE(FTRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
+    printf("실험19\n");
     return bp;
 }
 
@@ -226,9 +249,12 @@ static void* find_fit(size_t adjsize){
     /* first fit search */
     void* bp;
 
+    printf("실험20\n");
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0;
             bp = NEXT_BLKP(bp)){
+    printf("실험21\n");
         if (!GET_ALLOC(HDRP(bp)) && adjsize <= GET_SIZE(HDRP(bp))){
+    printf("실험22\n");
             return bp;
         }
     }
