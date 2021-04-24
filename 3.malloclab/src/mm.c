@@ -196,7 +196,7 @@ static void* extend_heap(size_t wordscnt){
     printf("실험10\n");
     /* Allocate an even number of words to maintain alignment */
     size = (wordscnt % 2) ? (wordscnt+1) * WSIZE : wordscnt * WSIZE;
-    if ((long)(bp = mem_sbrk(size)) == -1){ 
+    if ((unsigned long)(bp = mem_sbrk(size)) == -1){ 
     printf("실험11\n");
         return NULL; }
 
