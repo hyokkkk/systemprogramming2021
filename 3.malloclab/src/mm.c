@@ -172,24 +172,54 @@ void mm_free(void *bp)
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *ptr, size_t size)
+void *mm_realloc(void *bp, size_t size)
 {
-    void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
+    void *oldbp= bp;
+    void *newbp;
+    size_t adjsize = ALIGN(size+DSIZE);
+    size_t oldsize = GET_SIZE(HDRP(bp));
 
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    // 0. if size == 0 -> mem_free()
+    if (size == 0) {
+        mm_free(bp);
+        return bp;
+    }
+    // 1. compare size
+    if (GET_SIZE(HDRP(oldbp)) == adjsize){
+        return oldbp;
+    }else if (GET_SIZE(HDRP(oldbp)) > adjsize){
+    // 사이즈 작은 경우
+        PUT(HDRP(oldbp), PACK(adjsize, 1)); /* update header */
+        PUT(FTRP(oldbp), PACK(adjsize, 1)); /* update footer */
+        PUT(HDRP(NEXT_BLKP(oldbp)), PACK(oldsize-adjsize, 0)); /* update nextblk hdr */
+        PUT(FTRP(NEXT_BLKP(oldbp)), PACK(oldsize-adjsize, 0)); /* update nextblk ftr */
+        coalescse(NEXT_BLKP(oldbp));
+        return oldbp;
+    // 사이즈 더 큰 경우
+    }else {
+        // 뒤에 충분한 공간이 있을 경우
+        size_t nextsize = GET_SIZE(HDRP(NEXT_BLKP(oldbp)));
+        size_t addedsize = adjsize - oldsize;
+        if ((!GET_ALLOC(HDRP(NEXT_BLKP(oldbp)))) && nextsize >= addedsize){
+            PUT(FTRP(oldbp), 0);                   /* delete bp ftr */
+            PUT(FTRP(NEXT_BLKP(oldbp)), PACK(nextsize-addedsize, 0));/* set nextblk ftr */
+            PUT(HDRP(NEXT_BLKP(oldbp)), 0);        /* delete nextblk hdr */
+            PUT(HDRP(oldbp), PACK(adjsize, 1));    /* update header*/
+            PUT(FTRP(oldbp), PACK(adjsize, 1));    /* update ftr */
+            PUT(HDRP(NEXT_BLKP(oldbp)), PACK(nextsize-addedsize, 0));/* set nextblk hdr */
+            return oldbp;
+        // 뒤에 공간이 없어서 다른 곳을 찾아야 하는 경우
+        }else {
+            newbp = mm_malloc(size);
+            memcpy(newbp, oldbp, oldsize-DSIZE);
+            mm_free(oldbp);
+            return newbp;
+        }
+    }
 }
 
-static void* extend_heap(size_t wordscnt){
+static void* extend_heap(size_t wordscnt)
+{
     char* bp;
     size_t size;
 
@@ -208,7 +238,8 @@ static void* extend_heap(size_t wordscnt){
     return coalescse(bp);
 }
 
-static void* coalescse(void* bp){
+static void* coalescse(void* bp)
+{
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
@@ -234,7 +265,8 @@ static void* coalescse(void* bp){
     return bp;
 }
 
-static void* find_fit(size_t adjsize){
+static void* find_fit(size_t adjsize)
+{
     /* first fit search */
     void* bp;
 
