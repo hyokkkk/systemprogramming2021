@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -32,6 +33,12 @@
 /* Read and write a word at address p */
 #define GET(p)          (*(unsigned int*)(p))
 #define PUT(p, val)     (*(unsigned int*)(p) = (val))
+#define GET_SZINFO(bp)  ((GET(bp) & 0x7) + ((GET((char*)bp + WSIZE)) & 0x7))
+#define PUT_SZINFO(p, info)    (*(unsigned int*)(p) = (((GET(p)) & ~0x7) | (info)))
+
+#define SURFP(bp)       ((char*)(bp))
+#define DEEPP(bp)       ((char*)(bp) + WSIZE)
+
 
 /* Read the size and allocated fields from address p */
 #define GET_SIZE(p)     (GET(p) & ~0x7)         // ~0x7 : 000
@@ -54,11 +61,13 @@
 
 
 static void place(void* bp, size_t size);
-static void* heap_listp = 0;
 static void* extend_heap(size_t wordscnt);
 static void* coalescse(void* bp);
 static void* find_fit(size_t size);
+static int decide_sizelist(void* bp);
 
+static void* heap_listp = 0;
+static void* free_listp = 0;
 /*
  * mm_init - initialize the malloc package.
  */
@@ -68,21 +77,25 @@ int mm_init(void)
     if ((heap_listp = mem_sbrk(4*WSIZE)) == (void*)-1){
         return -1;
     }
-    //                    r--- heap_listp
-    //--------------------V------------------------
+    //                heap_listp
+    //--------------------|------------------------
     // unused | prolH 8/1 | prolF 8/1 | epilH 0/1 |
     //---------------------------------------------
-    PUT(heap_listp, 0);
+    PUT(heap_listp, 0);             // unused
     PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); // prologue header
     PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1)); // prologue footer
     PUT(heap_listp + (3*WSIZE), PACK(0, 1));     // epilogue header
     heap_listp += (2*WSIZE);
+    printf("heaplist: %p\n", heap_listp);
 
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
-    if (extend_heap(CHUNKSIZE/WSIZE) == NULL) {return -1;}
+    if ((free_listp = extend_heap(CHUNKSIZE/WSIZE)) == NULL) {return -1;}
+    printf("freelist: %p\n", free_listp);
 
     return 0;
 }
+
+
 
 /*
  * mm_malloc - Allocate a block by incrementing the brk pointer.
@@ -100,13 +113,13 @@ void *mm_malloc(size_t size)
     /* Adjust block size to include overhead and alignment reqs. */
     // why DSIZE? : header(4byte) + footer(4byte)
     adjsize = ALIGN(size + DSIZE);
-//    if (size <= DSIZE) { adjsize = 2*DSIZE; }
-//    else { adjsize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
-//    }
+
 
     /* search the free list for a fit */
     if ((bp = find_fit(adjsize)) != NULL) {
         place(bp, adjsize);
+    //TODO: delete
+    //printf("bp 주소: %p\n", bp);
         return bp;
     }
 
@@ -116,6 +129,8 @@ void *mm_malloc(size_t size)
         return NULL;
     }
     place(bp, adjsize);
+    //TODO: delete
+    //printf("bp 주소: %p\n", bp);
     return bp;
 //    int newsize = ALIGN(size + SIZE_T_SIZE);
 //    void *p = mem_sbrk(newsize);
@@ -126,35 +141,6 @@ void *mm_malloc(size_t size)
 //        return (void *)((char *)p + SIZE_T_SIZE);
 //    }
 }
-
-static void place(void* bp, size_t adjsize){
-    /* get the extended size and decide splitting or not */
-    size_t extsize = GET_SIZE(HDRP(bp));
-
-    /* the minimum block size is 16bytes
-     * - ALIGN(hdr 4by + ftr 4b + min 1byte) */
-    // if there are enough space for new block
-    if ((extsize - adjsize) >= 2*ALIGNMENT){
-        // split
-        PUT(HDRP(bp), PACK(adjsize, 1));
-        PUT(FTRP(bp), PACK(adjsize, 1));
-        bp = NEXT_BLKP(bp);
-        PUT(HDRP(bp), PACK(extsize - adjsize, 0));
-        PUT(FTRP(bp), PACK(extsize - adjsize, 0));
-    // not enough space
-    }else {
-        // 왜 extsize가 들어가야 함? adjsize여야 하지 않나?
-        // 새로 생긴 heap에서 adj가 차지하고 남은 게 16byte보다 작아도
-        // adj 기준으로 alloc해주고, 남는.... 아.....
-        // 많아야 세 칸 남는데, 세 칸은 alignment에 위배돼서 남을 수 없고,
-        // 많아야 두 칸인데 이건 hdr, ftr만으로도 채워질 수 있다.
-        // 소용이 없다는.. 아닌데... 나중에 extend_heap 되면
-        // 기존에 있던 헤더와 푸터를 새로운 애가 사용할 수 있지 않음?
-        PUT(HDRP(bp), PACK(extsize, 1));
-        PUT(FTRP(bp), PACK(extsize, 1));
-    }
-}
-
 
 /*
  * mm_free - Freeing a block does nothing.
@@ -225,18 +211,80 @@ static void* extend_heap(size_t wordscnt)
 
     /* Allocate an even number of words to maintain alignment */
     size = (wordscnt % 2) ? (wordscnt+1) * WSIZE : wordscnt * WSIZE;
-    if ((long)(bp = mem_sbrk(size)) == -1){
-        return NULL; 
+    printf("adjsize: %d\n",(int)size);
+    //TODO: 왜 long이지?
+    if ((unsigned int)(bp = mem_sbrk(size)) == -1){
+        return NULL;
     }
 
-    /* Initialize free block header/foter and the epilogue header */
-    PUT(HDRP(bp), PACK(size, 0));           // free blk header
+    // sbrk은 이전 heap의 마지막 위치를 return한다.
+    /* Initialize free block header/footer and the epilogue header */
+    PUT(HDRP(bp), PACK(size, 0));           // free blk header(old epilog)
     PUT(FTRP(bp), PACK(size, 0));           // free blk footer
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));   // new epilog header
+    //printf("size test:%d\n", decide_sizelist(bp));
+
+    // decide sizelist
+    decide_sizelist(bp);
 
     /* Coalesce if the previous block was free */
     return coalescse(bp);
 }
+
+static int decide_sizelist(void* bp)
+{
+    unsigned int size = GET_SIZE(HDRP(bp));
+
+    if (size <= 1<<6){
+        PUT_SZINFO(SURFP(bp), 0);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<7){
+        PUT_SZINFO(SURFP(bp), 1);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<8){
+        PUT_SZINFO(SURFP(bp), 2);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<9){
+        PUT_SZINFO(SURFP(bp), 3);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<10){
+        PUT_SZINFO(SURFP(bp), 4);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<11){
+        PUT_SZINFO(SURFP(bp), 5);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<12){
+        PUT_SZINFO(SURFP(bp), 6);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<13){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 0);
+    }else if (size <= 1<<14){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 1);
+    }else if (size <= 1<<15){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 2);
+    }else if (size <= 1<<16){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 3);
+    }else if (size <= 1<<17){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 4);
+    }else if (size <= 1<<18){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 5);
+    }else if (size <= 1<<19){
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 6);
+        // 최대 입력 숫자는 6자리임.
+    }else {
+        PUT_SZINFO(SURFP(bp), 7);
+        PUT_SZINFO(DEEPP(bp), 7);
+    }
+    return GET_SZINFO(bp);
+}
+
 
 static void* coalescse(void* bp)
 {
@@ -267,6 +315,7 @@ static void* coalescse(void* bp)
 
 static void* find_fit(size_t adjsize)
 {
+    //TODO: best fit
     /* first fit search */
     void* bp;
 
@@ -279,4 +328,31 @@ static void* find_fit(size_t adjsize)
     return NULL;
 }
 
+static void place(void* bp, size_t adjsize){
+    /* get the extended size and decide splitting or not */
+    size_t extsize = GET_SIZE(HDRP(bp));
+
+    /* the minimum block size is 16bytes
+     * - ALIGN(hdr 4by + ftr 4b + min 1byte) */
+    // if there is enough space for new block
+    if ((extsize - adjsize) >= 2*ALIGNMENT){
+        // split
+        PUT(HDRP(bp), PACK(adjsize, 1));
+        PUT(FTRP(bp), PACK(adjsize, 1));
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(extsize - adjsize, 0));
+        PUT(FTRP(bp), PACK(extsize - adjsize, 0));
+    // not enough space
+    }else {
+        // 왜 extsize가 들어가야 함? adjsize여야 하지 않나?
+        // 새로 생긴 heap에서 adj가 차지하고 남은 게 16byte보다 작아도
+        // adj 기준으로 alloc해주고, 남는.... 아.....
+        // 많아야 세 칸 남는데, 세 칸은 alignment에 위배돼서 남을 수 없고,
+        // 많아야 두 칸인데 이건 hdr, ftr만으로도 채워질 수 있다.
+        // 소용이 없다는.. 아닌데... 나중에 extend_heap 되면
+        // 기존에 있던 헤더와 푸터를 새로운 애가 사용할 수 있지 않음?
+        PUT(HDRP(bp), PACK(extsize, 1));
+        PUT(FTRP(bp), PACK(extsize, 1));
+    }
+}
 

@@ -269,7 +269,6 @@ void mm_free(void *_n) {
   insert(&root, n);
 }
 
-
 //
 // Implemented simply in terms of mm_malloc and mm_free
 //
