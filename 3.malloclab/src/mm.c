@@ -357,12 +357,16 @@ static void insert(void* bp, size_t adjsize)
         int msclass = GET_CLSINFO(mitr); // mainstream 블럭의 class info
         printf("ms의 class 정보: %d\n", msclass);
 
-        // 기존 class가 있는 경우 -> deep으로 들어간다.
+        // 기존 class가 있는 경우 -> main으로 들어간다.
         if (bpclass == msclass){
             SET_LINK(SURFP(bp), GET_SURFV(mitr));
             SET_LINK(DEEPP(bp), mitr);
             SET_LINK(SURFP(insertprevp), bp);
             SET_LINK(SURFP(mitr), bp);
+            SET_LINK(SURFP(bp), 0);         // surf ptr 0으로 초기화
+            SET_LINK(DEEPP(bp), 0);         // deep ptr 0으로 초기화
+            WRT_MAINST(HDRP(bp), 1);
+            WRT_MAINST(FTRP(bp), 1);
 
 
 //            SET_LINK(SURFP(bp), mitr);
@@ -377,12 +381,14 @@ static void insert(void* bp, size_t adjsize)
         // 나보다 큰 애를 만났다는 것
         // 기존 class가 없는 경우 -> surf(main)으로 들어간다.
         } else if (bpclass < msclass){
-            WRT_MAINST(HDRP(bp), 1);
-            WRT_MAINST(FTRP(bp), 1);
             // bp.surf = prev.surf
             // prev.surf = bp
-            SET_LINK(SURFP(bp), GET_SURFV(insertprevp));
+            SET_LINK(SURFP(bp), mitr);
             SET_LINK(SURFP(insertprevp), bp);
+            SET_LINK(SURFP(bp), 0);         // surf ptr 0으로 초기화
+            SET_LINK(DEEPP(bp), 0);         // deep ptr 0으로 초기화
+            WRT_MAINST(HDRP(bp), 1);
+            WRT_MAINST(FTRP(bp), 1);
             return;
         }
         // 아직 나보다 작은 애들임. 더 돌아야 함
@@ -397,12 +403,11 @@ static void insert(void* bp, size_t adjsize)
         SET_LINK(SURFP(bp), 0);         // surf ptr 0으로 초기화
         SET_LINK(DEEPP(bp), 0);         // deep ptr 0으로 초기화
                                         // ptr null안된다. lsb3bit때문에
-                                        //                              // ptr null안된다. lsb3bit때문에
         printf("시닙에게 연결이 되었는가? %p\n", GET_SURFV(insertprevp));
-            WRT_MAINST(HDRP(bp), 1);
-            WRT_MAINST(FTRP(bp), 1);
-            printf("main이지? %d\n", IS_MAINST(bp));
-            return ;
+        WRT_MAINST(HDRP(bp), 1);
+        WRT_MAINST(FTRP(bp), 1);
+        printf("main이지? %d\n", IS_MAINST(bp));
+        return ;
     }
 }
 
@@ -444,20 +449,16 @@ static void delete(void* bp, size_t adjsize)
         WRT_MAINST(FTRP(bp), 0);          // no more main stream
     //1-2. deep인 경우
     }else{
+        printf("뭐가문제\n");
+        printf("bp의 deep이 없나? %p\n", GET_DEEPV(bp));
+        printf("bp의 surface이 없나? %p\n", DEEPP(GET_SURFV(bp)));
         SET_LINK(DEEPP(GET_SURFV(bp)), GET_DEEPV(bp));
-        SET_LINK(SURFP(GET_DEEPV(bp)), GET_DEEPV(bp));
+        SET_LINK(SURFP(GET_DEEPV(bp)), GET_SURFV(bp));
         SET_LINK(SURFP(bp), 0);
         SET_LINK(DEEPP(bp), 0);
     }
-    if (IS_MAINST(bp)){
-        PUT(HDRP(bp), PACK(adjsize, 1));
-        PUT(FTRP(bp), PACK(adjsize, 1));
-        WRT_MAINST(HDRP(bp), 1);
-        WRT_MAINST(FTRP(bp), 1);
-    }else {
-        PUT(HDRP(bp), PACK(adjsize, 1));
-        PUT(FTRP(bp), PACK(adjsize, 1));
-    }
+    PUT(HDRP(bp), PACK(adjsize, 1));
+    PUT(FTRP(bp), PACK(adjsize, 1));
     printf("잘 delete됐는지 확인 : freelist의 첫빠따 %p\n", GET_SURFV(free_listp));
 }
 
