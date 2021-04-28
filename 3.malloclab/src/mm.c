@@ -1,14 +1,11 @@
 /*
- * mm-naive.c - The fastest, least memory-efficient malloc package.
  *
- * In this naive approach, a block is allocated by simply incrementing
- * the brk pointer.  A block is pure payload. There are no headers or
- * footers.  Blocks are never coalesced or reused. Realloc is
- * implemented directly using mm_malloc and mm_free.
  *
- * NOTE TO STUDENTS: Replace this header comment with your own header
- * comment that gives a high level description of your solution.
- */
+ * implicit list로 구현하였다.
+ *
+ *
+ *
+ * */
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -100,9 +97,6 @@ void *mm_malloc(size_t size)
     /* Adjust block size to include overhead and alignment reqs. */
     // why DSIZE? : header(4byte) + footer(4byte)
     adjsize = ALIGN(size + DSIZE);
-//    if (size <= DSIZE) { adjsize = 2*DSIZE; }
-//    else { adjsize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
-//    }
 
     /* search the free list for a fit */
     if ((bp = find_fit(adjsize)) != NULL) {
@@ -117,14 +111,6 @@ void *mm_malloc(size_t size)
     }
     place(bp, adjsize);
     return bp;
-//    int newsize = ALIGN(size + SIZE_T_SIZE);
-//    void *p = mem_sbrk(newsize);
-//    if (p == (void *)-1)
-//	return NULL;
-//    else {
-//        *(size_t *)p = size;
-//        return (void *)((char *)p + SIZE_T_SIZE);
-//    }
 }
 
 static void place(void* bp, size_t adjsize){
@@ -143,13 +129,6 @@ static void place(void* bp, size_t adjsize){
         PUT(FTRP(bp), PACK(extsize - adjsize, 0));
     // not enough space
     }else {
-        // 왜 extsize가 들어가야 함? adjsize여야 하지 않나?
-        // 새로 생긴 heap에서 adj가 차지하고 남은 게 16byte보다 작아도
-        // adj 기준으로 alloc해주고, 남는.... 아.....
-        // 많아야 세 칸 남는데, 세 칸은 alignment에 위배돼서 남을 수 없고,
-        // 많아야 두 칸인데 이건 hdr, ftr만으로도 채워질 수 있다.
-        // 소용이 없다는.. 아닌데... 나중에 extend_heap 되면
-        // 기존에 있던 헤더와 푸터를 새로운 애가 사용할 수 있지 않음?
         PUT(HDRP(bp), PACK(extsize, 1));
         PUT(FTRP(bp), PACK(extsize, 1));
     }
@@ -195,8 +174,8 @@ void *mm_realloc(void *bp, size_t size)
         PUT(FTRP(NEXT_BLKP(oldbp)), PACK(oldsize-adjsize, 0)); /* update nextblk ftr */
         coalescse(NEXT_BLKP(oldbp));
         return oldbp;
-    // 사이즈 더 큰 경우
     }else {
+    // 사이즈 더 큰 경우
         // 뒤에 충분한 공간이 있을 경우
         size_t nextsize = GET_SIZE(HDRP(NEXT_BLKP(oldbp)));
         size_t addedsize = adjsize - oldsize;
@@ -226,7 +205,7 @@ static void* extend_heap(size_t wordscnt)
     /* Allocate an even number of words to maintain alignment */
     size = (wordscnt % 2) ? (wordscnt+1) * WSIZE : wordscnt * WSIZE;
     if ((long)(bp = mem_sbrk(size)) == -1){
-        return NULL; 
+        return NULL;
     }
 
     /* Initialize free block header/foter and the epilogue header */
