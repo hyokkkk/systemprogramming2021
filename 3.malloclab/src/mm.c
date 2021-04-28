@@ -359,10 +359,20 @@ static void insert(void* bp, size_t adjsize)
 
         // 기존 class가 있는 경우 -> deep으로 들어간다.
         if (bpclass == msclass){
-            SET_LINK(SURFP(bp), GET_DEEPV(GET_SURFV(mitr)));
-            SET_LINK(DEEPP(bp), GET_DEEPV(GET_SURFV(mitr)));
-            SET_LINK(SURFP(GET_DEEPV(mitr)), bp);
-            SET_LINK(DEEPP(mitr), bp);
+            SET_LINK(SURFP(bp), GET_SURFV(mitr));
+            SET_LINK(DEEPP(bp), mitr);
+            SET_LINK(SURFP(insertprevp), bp);
+            SET_LINK(SURFP(mitr), bp);
+
+
+//            SET_LINK(SURFP(bp), mitr);
+//            SET_LINK(DEEPP(bp), GET_DEEPV(mitr));
+//
+//            //SET_LINK(SURFP(bp), GET_DEEPV(GET_SURFV(mitr)));
+//            //SET_LINK(DEEPP(bp), GET_DEEPV(GET_SURFV(mitr)));
+//            // 아.. deep이 없나?
+//            SET_LINK(SURFP(GET_DEEPV(mitr)), bp);
+//            SET_LINK(DEEPP(mitr), bp);
             return;
         // 나보다 큰 애를 만났다는 것
         // 기존 class가 없는 경우 -> surf(main)으로 들어간다.
@@ -377,27 +387,25 @@ static void insert(void* bp, size_t adjsize)
         }
         // 아직 나보다 작은 애들임. 더 돌아야 함
         insertprevp = mitr;
-        mitr = GET_SURFV(bp);
+        mitr = GET_SURFV(mitr);
     }
+    // 나왔다는 건 나보다 다 작다는 의미. 맨 마지막에 insert 해야 함. 
     // 1. mitr == NULL이면 바로 연결을 시킨다.
     if (mitr == NULL){
         printf("mitr null이다: %p\n", mitr);
-        SET_LINK(SURFP(free_listp), bp);
+        SET_LINK(SURFP(insertprevp), bp);
         SET_LINK(SURFP(bp), 0);         // surf ptr 0으로 초기화
         SET_LINK(DEEPP(bp), 0);         // deep ptr 0으로 초기화
                                         // ptr null안된다. lsb3bit때문에
                                         //                              // ptr null안된다. lsb3bit때문에
-        printf("시닙에게 연결이 되었는가? %p\n", GET_SURFV(free_listp));
+        printf("시닙에게 연결이 되었는가? %p\n", GET_SURFV(insertprevp));
             WRT_MAINST(HDRP(bp), 1);
             WRT_MAINST(FTRP(bp), 1);
             printf("main이지? %d\n", IS_MAINST(bp));
             return ;
     }
-
-
-
-
 }
+
 static void delete(void* bp, size_t adjsize)
 {
     printf("-------delete 들어옴-------\n");
@@ -494,11 +502,16 @@ static void* coalescse(void* bp)
     }else {
         //FIXME:
         printf("양쪽 다 비어있네. 합치자\n");
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
-            GET_SIZE(FTRP(NEXT_BLKP(bp)));
+        int prevsize = GET_SIZE(HDRP(PREV_BLKP(bp)));
+        int nextsize = GET_SIZE(FTRP(NEXT_BLKP(bp)));
+
+        delete(PREV_BLKP(bp), prevsize);
+        delete(NEXT_BLKP(bp), nextsize);
+        size += prevsize + nextsize;
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
+        insert (bp, size);
     }
     return bp;
 }
