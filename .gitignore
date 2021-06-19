@@ -2,6 +2,7 @@
 *.swp
 *.swo
 *.out
+*.o
 *.exe
 
 # shell lab
