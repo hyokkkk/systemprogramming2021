@@ -22,9 +22,24 @@ typedef struct {
     char proxy_connection[30];   //always be "close"
 } Req_hdr;
 
-void* sequential_proxy(void* vargp);
-void parse_uri(Req* req, Req_hdr* req_hdr);
-void parse_header(rio_t* rp, Req_hdr* req_hdr);
+typedef struct _Cache{
+    char data[MAX_OBJECT_SIZE];
+    char* key_uri;      // key for finding cache
+    struct _Cache* next;
+    size_t LRUcnt;
+} Cache;
+
+static Cache* root;
+
+void* sequential_proxy(void*);
+void parse_uri(Req*, Req_hdr*);
+void parse_header(rio_t*, Req_hdr*);
+
+size_t total_cache_size = 0;
+Cache* search_cache(char*);
+bool insert_cache(Cache*, int);
+void print_cache();
+void evict_cache();
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3";
@@ -43,6 +58,12 @@ int main(int argc, char** argv){
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
 
+    // Init cache dummy block
+    root = (Cache*)malloc(sizeof(Cache));
+    memset(root->data, 0, MAX_OBJECT_SIZE);
+    root->key_uri = NULL;
+    root->next = NULL;
+    root->LRUcnt = 0;
 
     listenfd = Open_listenfd(argv[1]);
     while(1){
@@ -105,39 +126,146 @@ void* sequential_proxy(void* vargp){
         printf("Only able to use GET\n");
         exit(1);
     }
-    // make request (req line and req header)
-    parse_uri(&req, &req_hdr);
-    int requestfd = Open_clientfd(req_hdr.hostname, req.port);
-
-    // build request buffer
-    strcat(request_buf, req.method);
-    strcat(request_buf, " ");
-    strcat(request_buf, req.path);
-    strcat(request_buf, " ");
-    strcat(request_buf, req.version);
-    strcat(request_buf, req_hdr.host);          // "Host: "
-    strcat(request_buf, req_hdr.hostname);
-    strcat(request_buf, "\r\n");
-    strcat(request_buf, user_agent_hdr);
-    strcat(request_buf, "\r\n");
-    strcat(request_buf, req_hdr.connection);
-    strcat(request_buf, "\r\n");
-    strcat(request_buf, req_hdr.proxy_connection);
-    strcat(request_buf, "\r\n");
-    strcat(request_buf, "\r\n");
-
-    // send request
-    Rio_writen(requestfd, request_buf, strlen(request_buf));
-
-    // receive response
-    ssize_t n = 0;
-    Rio_readinitb(&rio, requestfd);
-    while((n = Rio_readnb(&rio, response_buf, MAXLINE)) > 0){
-        Rio_writen(fd, response_buf, (size_t)n);
+    // 이때 cache에 있는지 체크한다. uri만 가지고 할 수 있음.
+    Cache* node;
+    if ((node = search_cache(req.uri))){
+        /*
+        캐쉬에 있으면 make request, send request, receive response 할 필요 없이
+        그냥 캐쉬에 있는 거 response_buf에 넣어주면 된다.
+        */
+        //printf("Cache hit!\n");
+        Rio_writen(fd, node->data, strlen(node->data));
+        // LRUcnt도 update해줌
     }
-    Close(requestfd);
+    // 캐쉬에 없으면 insert cache, parsing해서 서버에 다 보내야 함.
+    else{
+        //printf("Cache miss!\n");
+
+        // make request (req line and req header)
+        parse_uri(&req, &req_hdr);
+        int requestfd = Open_clientfd(req_hdr.hostname, req.port);
+
+        // build request buffer
+        strcat(request_buf, req.method);
+        strcat(request_buf, " ");
+        strcat(request_buf, req.path);
+        strcat(request_buf, " ");
+        strcat(request_buf, req.version);
+        strcat(request_buf, req_hdr.host);          // "Host: "
+        strcat(request_buf, req_hdr.hostname);
+        strcat(request_buf, "\r\n");
+        strcat(request_buf, user_agent_hdr);
+        strcat(request_buf, "\r\n");
+        strcat(request_buf, req_hdr.connection);
+        strcat(request_buf, "\r\n");
+        strcat(request_buf, req_hdr.proxy_connection);
+        strcat(request_buf, "\r\n");
+        strcat(request_buf, "\r\n");
+
+        // send request
+        Rio_writen(requestfd, request_buf, strlen(request_buf));
+
+        // receive response
+        ssize_t n = 0;
+        ssize_t obj_size = 0;
+        Rio_readinitb(&rio, requestfd);
+
+        // new node만들고
+        Cache* newNode = (Cache*)malloc(sizeof(Cache));
+        char* cache_buf = (char*)calloc(1, MAX_OBJECT_SIZE);
+        bool tooBig = false;
+
+        while((n = Rio_readnb(&rio, response_buf, MAXLINE)) > 0){
+            Rio_writen(fd, response_buf, (size_t)n);
+
+            // data의 size가 MAX_OBJECT_SIZE 102400 보다 작은지 확인
+            obj_size += n;
+            if (obj_size > MAX_OBJECT_SIZE) { 
+                tooBig = true;
+                continue; }
+            strncat(cache_buf, response_buf, n);
+        }
+
+        /* node의 element setting */
+        newNode->key_uri = (char*)malloc(sizeof(req.uri));
+        if (!tooBig) strcpy(newNode->data, cache_buf);
+        strcpy(newNode->key_uri, req.uri);
+        newNode->next = NULL;
+
+        /*
+        printf("data size: %d\n", (int)obj_size);
+        printf("key uri: %s\n", newNode->key_uri);
+        printf("data: %s\n", newNode->data);
+        */
+
+
+        // mutex lock 해야
+        while (!insert_cache(newNode, obj_size)){
+            evict_cache();
+        }
+        // mutex unlock 해야
+        //print_cache();
+
+        // lru update 해야
+        Close(requestfd);
+    }
     Close(fd);      // 이거때문에 response가 중간에 끊겼었음.
 
+    return NULL;
+}
+void update_LRU(Cache* node){
+}
+void evict_cache(){
+    Cache* prev = root, *curr = root->next;
+    if (!curr) { printf("empty cache! cannot evict\n"); exit(1); }
+
+    // decide eviction target
+    while (curr){
+        if (curr->LRUcnt == 0){
+            break;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+    // do eviction
+    total_cache_size -= sizeof(curr->data);
+    prev->next = curr->next;
+    free(curr);
+}
+
+void print_cache(){
+    //printf("print_cache에 들어옴\n");
+    Cache* curr = root;
+    //printf("root uri: %s\n", curr->key_uri);
+
+    curr = curr->next;
+    while(curr){
+        printf("cache: %s\n", (curr->key_uri));
+        curr = curr->next;
+    }
+}
+
+// 그냥 맨 앞에다 넣는 게 편하다.
+bool insert_cache(Cache* node, int obj_size){
+    //printf("insert_cache에 들어옴\n");
+    if (total_cache_size + obj_size > MAX_CACHE_SIZE){
+        return false;
+    }
+    node->next = root->next;
+    root->next = node;
+    total_cache_size += obj_size;
+    return true;
+}
+
+// 우리 과제에서는 그냥 port 80만 들어올 것 같으니.....
+Cache* search_cache(char* uri){
+    Cache *curr = root;
+    curr = curr->next;
+    while(curr){
+        if (!curr->key_uri){ printf("Valid node, null key_uri\n"); exit(1); }
+        if (!strcmp(curr->key_uri, uri)){ return curr; }
+        curr = curr->next;
+    }
     return NULL;
 }
 
