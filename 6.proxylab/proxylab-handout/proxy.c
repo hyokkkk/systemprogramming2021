@@ -22,19 +22,20 @@ typedef struct {
     char proxy_connection[30];   //always be "close"
 } Req_hdr;
 
-void sequential_proxy(int fd, Req* request, Req_hdr* req_hdr);
+void* sequential_proxy(void* vargp);
 void parse_request(Req* req, Req_hdr* req_hdr);
 
+    Req req;
+    Req_hdr req_hdr;
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3";
 
 int main(int argc, char** argv){
     int listenfd, connfd;
+    pthread_t tid;
     socklen_t clientlen;
     struct sockaddr_in clientaddr;
 
-    Req req;
-    Req_hdr req_hdr;
 
     /* init request elements */
     memset(req.method, 0, 4);
@@ -59,14 +60,16 @@ int main(int argc, char** argv){
         printf("[d]accept 준비중\n");
 
         connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-        sequential_proxy(connfd, &req, &req_hdr);
-        Close(connfd);
+        Pthread_create(&tid, NULL, sequential_proxy, &connfd);
+        //sequential_proxy(connfd, &req, &req_hdr);
     }
     return 0;
 }
 
-void sequential_proxy(int fd, Req* req, Req_hdr* req_hdr){
+void* sequential_proxy(void* vargp){
     printf("\n**[d]sequential에 들어옴\n");
+    int fd = *((int*)vargp);
+    Pthread_detach(pthread_self());
 
     char buf[MAXLINE];
     char request_buf[MAXLINE];
@@ -80,34 +83,34 @@ void sequential_proxy(int fd, Req* req, Req_hdr* req_hdr){
     printf("%s\n", buf);
 
     // parse HTTP request from browser
-    sscanf(buf, "%s %s %s", req->method, req->uri, req->version);
-    printf("[d]method: %s\n", req->method);
-    printf("[d]uri: %s\n", req->uri);
-    printf("[d]version: %s\n", req->version);
+    sscanf(buf, "%s %s %s", req.method, req.uri, req.version);
+    printf("[d]method: %s\n", req.method);
+    printf("[d]uri: %s\n", req.uri);
+    printf("[d]version: %s\n", req.version);
 
     // parse the request
-    if (strcasecmp(req->method, "GET")){
+    if (strcasecmp(req.method, "GET")){
         printf("Only able to use GET\n");
         exit(1);
     }
     // 서버에게 request line이랑 headers 보내야 함.
-    parse_request(req, req_hdr);
-    int requestfd = Open_clientfd(req_hdr->hostname, req->port);
+    parse_request(&req, &req_hdr);
+    int requestfd = Open_clientfd(req_hdr.hostname, req.port);
 
     // build request buffer
-    strcat(request_buf, req->method);
+    strcat(request_buf, req.method);
     strcat(request_buf, " ");
-    strcat(request_buf, req->path);
+    strcat(request_buf, req.path);
     strcat(request_buf, " ");
-    strcat(request_buf, req->version);
-    strcat(request_buf, req_hdr->host);
-    strcat(request_buf, req_hdr->hostname);
+    strcat(request_buf, req.version);
+    strcat(request_buf, req_hdr.host);
+    strcat(request_buf, req_hdr.hostname);
     strcat(request_buf, "\r\n");
     strcat(request_buf, user_agent_hdr);
     strcat(request_buf, "\r\n");
-    strcat(request_buf, req_hdr->connection);
+    strcat(request_buf, req_hdr.connection);
     strcat(request_buf, "\r\n");
-    strcat(request_buf, req_hdr->proxy_connection);
+    strcat(request_buf, req_hdr.proxy_connection);
     strcat(request_buf, "\r\n");
     strcat(request_buf, "\r\n");
 
@@ -123,6 +126,12 @@ void sequential_proxy(int fd, Req* req, Req_hdr* req_hdr){
         Rio_writen(fd, response_buf, (size_t)n);
     }
     Close(requestfd);
+
+    // 이거 안 해줬어서 첫번째 testcase만 통과했었음
+    memset(buf, 0, sizeof(buf));
+    memset(request_buf, 0, sizeof(request_buf));
+    memset(response_buf, 0, sizeof(response_buf));
+    return NULL;
 }
 
 //
@@ -161,19 +170,6 @@ void parse_request(Req* req, Req_hdr* req_hdr){
     printf("[debug] path: %s\n", req->path);
     printf("[debug] port: %s\n", req->port);
     printf("[debug] version: %s\n", req->version);
-
-    /*
-    char req_buf[MAXLINE];
-    memset(req_buf, 0, MAXLINE);
-    // GET /path HTTP/1.0 으로 만듦.
-    strcat(req_buf, req->method);
-    strcat(req_buf, " ");
-    strcat(req_buf, req->path);
-    strcat(req_buf, " ");
-    strcat(req_buf, "HTTP/1.0\r\n");
-
-    printf("[d] REQ: %s", req_buf);
-    */
 }
 
 
