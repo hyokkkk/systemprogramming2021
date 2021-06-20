@@ -40,6 +40,9 @@ int main(int argc, char** argv){
         fprintf(stderr, "Usage: %s <port number>\n", argv[0]);
         return 1;
     }
+    // Ignore SIGPIPE
+    signal(SIGPIPE, SIG_IGN);
+
 
     listenfd = Open_listenfd(argv[1]);
     while(1){
