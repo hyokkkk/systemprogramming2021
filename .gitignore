@@ -21,6 +21,5 @@ trans.o
 # proxy lab
 proxy
 tiny
-
 .proxy/
 .noproxy/
