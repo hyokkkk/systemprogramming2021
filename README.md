@@ -3,7 +3,7 @@
 1. malloclab
     - 촉박한 시간으로 인해 가장 간단한 implicit list로 구현을 하였음. 효율성 점수 아주 낮음.
     - 제출버전은 implicit_list branch에 있음.
-    - master branch 미완성된 segregated list 버전임.
+    - master branch는 미완성된 segregated list 버전임.
 1. cachelab
     - auto grader로 0.6점 깎였는데 들리는 소문에 의하면 만점 나온 사람이 없다고 함.
 1. kernellab
