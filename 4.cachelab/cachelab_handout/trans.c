@@ -322,3 +322,4 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N])
 //    input 1사분 idx0에 가서 그 다음 원소를 읽고, 또다시 output 3사분 idx8에 쓰는 행위를
 //    반복하면, 불필요한 eviction이 많이 일어난다.
 //  - 자세한 내용은 report 참고.
+//
