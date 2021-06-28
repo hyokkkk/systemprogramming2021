@@ -44,11 +44,6 @@ void init(void)
   // initialize a new list to keep track of all memory (de-)allocations
   // (not needed for part 1)
   list = new_list();
-
-  //FIXME:
-  // realloc(NULL, size);
-  // free(NULL);
-
 }
 
 //
