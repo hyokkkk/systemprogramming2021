@@ -3,3 +3,23 @@
 *.swo
 *.out
 *.exe
+
+# shell lab
+myint
+myspin
+mysplit
+mystop
+tsh
+
+# cache lab
+csim
+test-trans
+tracegen
+trans.o
+
+# proxy lab
+proxy
+tiny
+
+.proxy/
+.noproxy/
